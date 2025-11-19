@@ -1,0 +1,38 @@
+{
+  "repositories": [
+    {
+      "name": "atd-workspace-ui",
+      "url": "https://github.com/autoforce/atd-workspace-ui.git",
+      "branch": "main",
+      "directory": "apps/atd-workspace-ui",
+      "packageManager": "npm",
+      "envTemplate": "config/env-templates/ui.env.template",
+      "envDestination": "apps/atd-workspace-ui/.env",
+      "postClone": []
+    },
+    {
+      "name": "atd-workspace-general-api",
+      "url": "https://github.com/autoforce/atd-workspace-general-api.git",
+      "branch": "main",
+      "directory": "apps/atd-workspace-general-api",
+      "packageManager": "yarn",
+      "envTemplate": "config/env-templates/general-api.env.template",
+      "envDestination": "apps/atd-workspace-general-api/.env",
+      "postClone": [
+        "npx prisma generate"
+      ]
+    },
+    {
+      "name": "atd-workspace-hosting",
+      "url": "https://github.com/autoforce/atd-workspace-hosting.git",
+      "branch": "main",
+      "directory": "apps/atd-workspace-hosting",
+      "packageManager": "pnpm",
+      "envTemplate": "config/env-templates/hosting-api.env.template",
+      "envDestination": "apps/atd-workspace-hosting/api/.env",
+      "postClone": [
+        "pnpm --filter api run prepare"
+      ]
+    }
+  ]
+}

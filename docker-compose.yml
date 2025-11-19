@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL para General API
+  postgres-general:
+    image: postgres:14.10-alpine
+    container_name: atd-postgres-general
+    environment:
+      POSTGRES_DB: atd_general
+      POSTGRES_USER: atd
+      POSTGRES_PASSWORD: atd123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-general-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atd -d atd_general"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atd-network
+
+  # PostgreSQL para Hosting API
+  postgres-hosting:
+    image: postgres:14.10-alpine
+    container_name: atd-postgres-hosting
+    environment:
+      POSTGRES_DB: atd_hosting
+      POSTGRES_USER: atd
+      POSTGRES_PASSWORD: atd123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-hosting-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atd -d atd_hosting"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atd-network
+
+  # Redis para BullMQ (Hosting Worker)
+  redis:
+    image: redis:7-alpine
+    container_name: atd-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+
+  # LocalStack - AWS local (S3, Cognito, CloudFront)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: atd-localstack
+    environment:
+      - SERVICES=s3,cognito-idp,cloudfront
+      - DEBUG=1
+      - AWS_DEFAULT_REGION=us-east-1
+      - EDGE_PORT=4566
+      - DATA_DIR=/var/lib/localstack/data
+    ports:
+      - "4566:4566"      # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - atd-network
+
+volumes:
+  postgres-general-data:
+    driver: local
+  postgres-hosting-data:
+    driver: local
+  redis-data:
+    driver: local
+  localstack-data:
+    driver: local
+
+networks:
+  atd-network:
+    driver: bridge

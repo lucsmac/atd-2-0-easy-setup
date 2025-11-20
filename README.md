@@ -191,6 +191,14 @@ make clean-all          # Limpa tudo + reset Docker
 make purge              # Remove apps/ completamente
 ```
 
+#### Documentação
+```bash
+make docs               # Builda e serve documentação Swagger (porta 8080)
+make docs-build         # Apenas builda a documentação
+make docs-serve         # Builda e serve a documentação (porta 8080)
+make docs-open          # Builda e abre a documentação no navegador
+```
+
 #### Utilidades
 ```bash
 make status             # Status de repos e serviços
@@ -383,7 +391,22 @@ make services-logs      # Logs em tempo real
 - [UI - Documentação Completa](./apps/atd-workspace-ui/README.md)
 - [General API - Documentação Completa](./apps/atd-workspace-general-api/README.md)
 - [Hosting - Documentação Completa](./apps/atd-workspace-hosting/README.md)
+- [Hosting - Processo de Publicação](./apps/atd-workspace-hosting/PUBLICATION_PROCESS.md)
 - [CLAUDE.md - Guia para IA](./CLAUDE.md)
+
+### Documentação Swagger
+
+Para acessar a documentação interativa das APIs:
+
+```bash
+make docs  # Abre documentação Swagger em http://localhost:8080
+```
+
+A documentação Swagger fornece:
+- Especificação completa de todos os endpoints
+- Schemas de request/response
+- Exemplos de uso
+- Interface interativa para testar endpoints
 
 ## Suporte
 

@@ -199,6 +199,15 @@ make docs-serve         # Builda e serve a documentação (porta 8080)
 make docs-open          # Builda e abre a documentação no navegador
 ```
 
+#### Storybook
+```bash
+make storybook-renderer # Storybook do Renderer - blocos (porta 6006)
+make storybook-ui       # Storybook da UI - componentes (porta 6007)
+make storybook-build    # Builda ambos os Storybooks
+make storybook-build-ui # Builda apenas Storybook da UI
+make storybook-build-renderer # Builda apenas Storybook do Renderer
+```
+
 #### Utilidades
 ```bash
 make status             # Status de repos e serviços
@@ -262,6 +271,26 @@ Este meta-repositório provisiona os seguintes serviços via Docker:
 - Serviços mockados: S3, Cognito, CloudFront
 - Dashboard: http://localhost:4566
 
+## Module Federation (Blocos do Page Builder)
+
+O projeto usa **Webpack Module Federation** para compartilhar componentes entre aplicações:
+
+- **Renderer (Host):** Contém e expõe 23+ blocos/seções React
+  - Localização: `apps/atd-workspace-hosting/renderer/src/sections/`
+  - Exemplos: Hero, Gallery, FormContentImage, Header, Footer, etc.
+  - Expõe via: `vite.federation.config.ts`
+
+- **UI (Consumer):** Consome os blocos remotamente no page builder
+  - Configuração: `VITE_MODULE_FEDERATION_URL` no `.env`
+  - Padrão: CloudFront (staging/produção) - não requer renderer local
+  - Desenvolvimento: `http://localhost:5500/` - requer renderer rodando
+
+**Vantagens:**
+- UI e renderer podem ser desenvolvidos/deployados independentemente
+- Blocos podem ser atualizados sem rebuild da UI
+- Mesmos componentes usados no builder e nos sites publicados
+- Hot reload durante desenvolvimento de blocos
+
 ## Fluxo de Trabalho Típico
 
 ### Início do Dia
@@ -276,7 +305,65 @@ make services         # Garante que serviços estão rodando
 make dev-ui           # Trabalha apenas na UI
 # ou
 make dev-general-api  # Trabalha apenas na General API
+# ou
+make dev-hosting      # Trabalha no Hosting (API + Worker + Renderer)
 ```
+
+### Desenvolvendo Blocos do Page Builder
+
+Os blocos/componentes do page builder estão no **Hosting Renderer**, não na UI. Por padrão, a UI consome blocos remotos do CloudFront (staging/produção).
+
+**Para usar blocos remotos (padrão - não precisa rodar renderer local):**
+```bash
+make dev-ui           # UI consome blocos do CloudFront
+```
+- ✅ Mais rápido, não precisa rodar renderer
+- ❌ Não pode testar alterações nos blocos
+
+**Para desenvolver blocos localmente:**
+
+1. Inicie o renderer:
+```bash
+make dev-hosting-renderer  # Sobe renderer em modo dev
+```
+
+2. Configure a UI para usar renderer local em `apps/atd-workspace-ui/.env`:
+```env
+# Comentar:
+# VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
+
+# Descomentar:
+VITE_MODULE_FEDERATION_URL='http://localhost:5500/'
+```
+
+3. Reinicie a UI para aplicar mudanças:
+```bash
+make dev-ui
+```
+
+Agora a UI carregará blocos do renderer local com hot reload!
+
+### Visualizando Componentes no Storybook
+
+O projeto possui **dois Storybooks** para desenvolvimento isolado de componentes:
+
+**Storybook do Renderer (blocos do page builder):**
+```bash
+make storybook-renderer
+```
+- Porta: http://localhost:6006
+- Contém: Todos os 23+ blocos/seções (Hero, Gallery, FormContentImage, etc.)
+- Útil para: Desenvolver e testar blocos visuais isoladamente
+
+**Storybook da UI (componentes internos):**
+```bash
+make storybook-ui
+```
+- Porta: http://localhost:6007
+- Contém: Componentes da UI (Sidebar, Navbar, MediaSelect, etc.)
+- Útil para: Desenvolver componentes da interface do page builder
+
+**Dica:** Você pode rodar ambos Storybooks simultaneamente em portas diferentes!
 
 ### Atualizando Repositórios
 ```bash
@@ -333,33 +420,77 @@ make reclone          # Remove apps/ e clona tudo novamente
 make env-regenerate   # Regenera todos os .env
 ```
 
+### Blocos do page builder não carregam
+
+**Problema:** UI não mostra blocos ou mostra erro de Module Federation.
+
+**Solução 1 - Usando blocos remotos (padrão):**
+```bash
+# Verifique apps/atd-workspace-ui/.env:
+VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
+# (deve estar apontando para CloudFront, não localhost)
+```
+
+**Solução 2 - Usando blocos locais:**
+```bash
+# 1. Certifique-se que o renderer está rodando:
+make dev-hosting-renderer
+
+# 2. Verifique apps/atd-workspace-ui/.env:
+VITE_MODULE_FEDERATION_URL='http://localhost:5500/'
+
+# 3. Reinicie a UI:
+make dev-ui
+```
+
+**Causa comum:** Configuração de `VITE_MODULE_FEDERATION_URL` apontando para localhost mas renderer não está rodando.
+
 ## Portas Utilizadas
 
 | Serviço              | Porta | URL                                |
 |----------------------|-------|------------------------------------|
 | UI                   | 3000  | http://localhost:3000              |
 | General API          | 3005  | http://localhost:3005              |
-| Hosting API          | 3000  | http://localhost:3000              |
-| Hosting Renderer     | 3001  | http://localhost:3001              |
+| Hosting API          | 3001  | http://localhost:3001              |
+| Hosting Renderer     | *     | http://localhost:* (Next.js auto)  |
+| Storybook Renderer   | 6006  | http://localhost:6006              |
+| Storybook UI         | 6007  | http://localhost:6007              |
+| Swagger Docs         | 8080  | http://localhost:8080              |
 | PostgreSQL General   | 5432  | localhost:5432                     |
 | PostgreSQL Hosting   | 5433  | localhost:5433                     |
 | Redis                | 6379  | localhost:6379                     |
 | LocalStack           | 4566  | http://localhost:4566              |
-| Bull Board           | 3000  | http://localhost:3000/bullmq/queues|
+| Bull Board           | 3001  | http://localhost:3001/bullmq/queues|
+
+**Notas:**
+- O Hosting Renderer usa Next.js que detecta automaticamente portas disponíveis. Verifique a saída do console ao iniciar para confirmar a porta.
+- Os Storybooks usam portas diferentes (6006 e 6007) e podem rodar simultaneamente.
 
 ## Monitoramento
 
 ### Bull Board (Filas)
-- URL: http://localhost:3000/bullmq/queues
-- Usuário: `admin`
-- Senha: `admin`
+- URL: http://localhost:3001/bullmq/queues
+- Usuário/Senha: Definidos por `BULLBOARD_USER` e `BULLBOARD_PASSWORD` no `.env`
 - Requer Hosting API rodando
+- Monitora: Jobs de publicação, status, filas, erros
 
-### Prisma Studio
+### Storybook (Componentes)
+```bash
+make storybook-renderer  # Blocos do page builder (porta 6006)
+make storybook-ui        # Componentes da UI (porta 6007)
+```
+- Renderer: http://localhost:6006
+- UI: http://localhost:6007
+- Visualiza: Componentes isolados com controles interativos
+- Hot reload: Mudanças aparecem automaticamente
+- Pode rodar ambos simultaneamente
+
+### Prisma Studio (Banco de Dados)
 ```bash
 make db-studio-general  # Visualiza banco General API
 make db-studio-hosting  # Visualiza banco Hosting API
 ```
+- Interface web para visualizar e editar dados do PostgreSQL
 
 ### Docker Status
 ```bash

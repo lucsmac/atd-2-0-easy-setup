@@ -6,6 +6,7 @@
 .PHONY: clean clean-ui clean-general-api clean-hosting clean-all purge
 .PHONY: env-generate env-regenerate env-validate status logs lint lint-fix format format-check
 .PHONY: docs docs-build docs-serve docs-open
+.PHONY: storybook-ui storybook-renderer storybook-build storybook-build-ui storybook-build-renderer
 
 # Cores para output (funciona em bash)
 BLUE := \033[0;34m
@@ -361,3 +362,32 @@ docs-open: docs-build ## Builda e abre a documentação Swagger no navegador
 	@xdg-open apps/atd-workspace-hosting/docs/dist/index.html 2>/dev/null || open apps/atd-workspace-hosting/docs/dist/index.html 2>/dev/null || echo "$(YELLOW)Abra manualmente: apps/atd-workspace-hosting/docs/dist/index.html$(NC)"
 
 docs: docs-serve ## Alias para docs-serve
+
+##@ Storybook
+
+storybook-ui: ## Inicia Storybook da UI (porta 6007)
+	@echo "$(BLUE)📖 Iniciando Storybook da UI...$(NC)"
+	@echo "$(GREEN)✓ Storybook disponível em: $(YELLOW)http://localhost:6007$(NC)"
+	@echo "$(YELLOW)ℹ  Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-ui && npm run storybook -- --port 6007
+
+storybook-renderer: ## Inicia Storybook do Renderer - blocos (porta 6006)
+	@echo "$(BLUE)📖 Iniciando Storybook do Renderer...$(NC)"
+	@echo "$(GREEN)✓ Storybook disponível em: $(YELLOW)http://localhost:6006$(NC)"
+	@echo "$(YELLOW)ℹ  Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-hosting/renderer && pnpm storybook -- --port 6006
+
+storybook-build-ui: ## Builda Storybook da UI
+	@echo "$(BLUE)📖 Building Storybook da UI...$(NC)"
+	@cd apps/atd-workspace-ui && npm run build-storybook
+	@echo "$(GREEN)✓ Storybook da UI buildado em apps/atd-workspace-ui/storybook-static$(NC)"
+
+storybook-build-renderer: ## Builda Storybook do Renderer
+	@echo "$(BLUE)📖 Building Storybook do Renderer...$(NC)"
+	@cd apps/atd-workspace-hosting/renderer && pnpm build-storybook
+	@echo "$(GREEN)✓ Storybook do Renderer buildado em apps/atd-workspace-hosting/renderer/storybook-static$(NC)"
+
+storybook-build: storybook-build-ui storybook-build-renderer ## Builda ambos os Storybooks
+

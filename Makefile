@@ -5,6 +5,7 @@
 .PHONY: db-migrate db-migrate-general db-migrate-hosting db-studio-general db-studio-hosting db-reset db-seed
 .PHONY: clean clean-ui clean-general-api clean-hosting clean-all purge
 .PHONY: env-generate env-regenerate env-validate status logs lint lint-fix format format-check
+.PHONY: docs docs-build docs-serve docs-open
 
 # Cores para output (funciona em bash)
 BLUE := \033[0;34m
@@ -340,3 +341,23 @@ monitor: ## Abre Bull Board (monitoramento de filas)
 	@echo "   Senha: admin"
 	@echo ""
 	@echo "$(YELLOW)ℹ  Certifique-se de que o Hosting API está rodando (make dev-hosting-api)$(NC)"
+
+##@ Documentação
+
+docs-build: ## Builda a documentação Swagger do Hosting API
+	@echo "$(BLUE)📚 Building Swagger documentation...$(NC)"
+	@cd apps/atd-workspace-hosting/docs && npm run build
+	@echo "$(GREEN)✓ Documentação buildada em apps/atd-workspace-hosting/docs/dist$(NC)"
+
+docs-serve: docs-build ## Builda e serve a documentação Swagger (porta 8080)
+	@echo "$(BLUE)📚 Servindo documentação Swagger...$(NC)"
+	@echo "$(GREEN)✓ Documentação disponível em: $(YELLOW)http://localhost:8080$(NC)"
+	@echo "$(YELLOW)ℹ  Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-hosting/docs/dist && npx http-server -p 8080
+
+docs-open: docs-build ## Builda e abre a documentação Swagger no navegador
+	@echo "$(BLUE)📚 Abrindo documentação Swagger...$(NC)"
+	@xdg-open apps/atd-workspace-hosting/docs/dist/index.html 2>/dev/null || open apps/atd-workspace-hosting/docs/dist/index.html 2>/dev/null || echo "$(YELLOW)Abra manualmente: apps/atd-workspace-hosting/docs/dist/index.html$(NC)"
+
+docs: docs-serve ## Alias para docs-serve

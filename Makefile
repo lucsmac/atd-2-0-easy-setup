@@ -89,9 +89,9 @@ dev: services ## Inicia todas as aplicações (UI + APIs + Worker + Renderer)
 	@trap 'kill 0' EXIT; \
 	(cd apps/atd-workspace-ui && npm run dev) & \
 	(cd apps/atd-workspace-general-api && yarn dev) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter api dev) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter api worker) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter renderer dev) & \
+	(cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev) & \
+	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
+	(cd apps/atd-workspace-hosting/renderer && pnpm dev) & \
 	wait
 
 dev-ui: services ## Inicia apenas UI (porta 3000)
@@ -102,32 +102,32 @@ dev-general-api: services ## Inicia apenas General API (porta 3005)
 	@echo "$(BLUE)🔧 Iniciando General API...$(NC)"
 	@cd apps/atd-workspace-general-api && yarn dev
 
-dev-hosting-api: services ## Inicia apenas Hosting API (porta 3000)
+dev-hosting-api: services ## Inicia apenas Hosting API (porta 3001)
 	@echo "$(BLUE)🔧 Iniciando Hosting API...$(NC)"
-	@cd apps/atd-workspace-hosting && pnpm --filter api dev
+	@cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev
 
 dev-hosting-worker: services ## Inicia apenas Hosting Worker (BullMQ)
 	@echo "$(BLUE)⚙️  Iniciando Hosting Worker...$(NC)"
-	@cd apps/atd-workspace-hosting && pnpm --filter api worker
+	@cd apps/atd-workspace-hosting/api && pnpm worker
 
-dev-hosting-renderer: services ## Inicia apenas Hosting Renderer (porta 3001)
+dev-hosting-renderer: services ## Inicia apenas Hosting Renderer (Next.js)
 	@echo "$(BLUE)🎨 Iniciando Hosting Renderer...$(NC)"
-	@cd apps/atd-workspace-hosting && pnpm --filter renderer dev
+	@cd apps/atd-workspace-hosting/renderer && pnpm dev
 
 dev-apis: services ## Inicia General API + Hosting API + Worker
 	@echo "$(BLUE)🔧 Iniciando todas as APIs...$(NC)"
 	@trap 'kill 0' EXIT; \
 	(cd apps/atd-workspace-general-api && yarn dev) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter api dev) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter api worker) & \
+	(cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev) & \
+	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
 	wait
 
 dev-hosting: services ## Inicia Hosting API + Worker + Renderer
 	@echo "$(BLUE)🏗️  Iniciando Hosting completo...$(NC)"
 	@trap 'kill 0' EXIT; \
-	(cd apps/atd-workspace-hosting && pnpm --filter api dev) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter api worker) & \
-	(cd apps/atd-workspace-hosting && pnpm --filter renderer dev) & \
+	(cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev) & \
+	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
+	(cd apps/atd-workspace-hosting/renderer && pnpm dev) & \
 	wait
 
 ##@ Testes

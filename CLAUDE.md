@@ -116,7 +116,11 @@ pnpm --filter api dev
 cd atd-workspace-hosting
 pnpm --filter api dev:worker
 
-# Terminal 4: UI
+# Terminal 4: Hosting Renderer (Next.js for federated modules)
+cd atd-workspace-hosting
+pnpm --filter renderer dev
+
+# Terminal 5: UI
 cd atd-workspace-ui
 npm install
 cp .env.sample .env

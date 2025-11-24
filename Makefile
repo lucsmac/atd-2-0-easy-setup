@@ -111,9 +111,12 @@ dev-hosting-worker: services ## Inicia apenas Hosting Worker (BullMQ)
 	@echo "$(BLUE)⚙️  Iniciando Hosting Worker...$(NC)"
 	@cd apps/atd-workspace-hosting/api && pnpm worker
 
-dev-hosting-renderer: services ## Inicia apenas Hosting Renderer (Next.js)
-	@echo "$(BLUE)🎨 Iniciando Hosting Renderer...$(NC)"
-	@cd apps/atd-workspace-hosting/renderer && pnpm dev
+dev-hosting-renderer: services ## Inicia Hosting Renderer com Module Federation (porta 5500)
+	@echo "$(BLUE)🎨 Iniciando Hosting Renderer com Module Federation...$(NC)"
+	@echo "$(YELLOW)ℹ  Módulos federados disponíveis em: http://localhost:5500$(NC)"
+	@echo "$(YELLOW)ℹ  Configure UI com: VITE_MODULE_FEDERATION_URL='http://localhost:5500/'$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-hosting/renderer && pnpm dev-federation
 
 dev-apis: services ## Inicia General API + Hosting API + Worker
 	@echo "$(BLUE)🔧 Iniciando todas as APIs...$(NC)"

@@ -139,13 +139,14 @@ make services-reset     # Reset completo (APAGA DADOS!)
 
 #### Desenvolvimento
 ```bash
-make dev                # Inicia TODAS as aplicações
-make dev-ui             # Inicia apenas UI (porta 3000)
-make dev-general-api    # Inicia apenas General API (porta 3005)
-make dev-hosting-api    # Inicia apenas Hosting API (porta 3000)
-make dev-hosting-worker # Inicia apenas Hosting Worker (BullMQ)
-make dev-apis           # Inicia General API + Hosting API + Worker
-make dev-hosting        # Inicia Hosting completo (API + Worker + Renderer)
+make dev                   # Inicia TODAS as aplicações
+make dev-ui                # Inicia apenas UI (porta 3000)
+make dev-general-api       # Inicia apenas General API (porta 3005)
+make dev-hosting-api       # Inicia apenas Hosting API (porta 3001)
+make dev-hosting-worker    # Inicia apenas Hosting Worker (BullMQ)
+make dev-hosting-renderer  # Inicia Renderer Federation (porta 5500) para UI consumir blocos
+make dev-apis              # Inicia General API + Hosting API + Worker
+make dev-hosting           # Inicia Hosting completo (API + Worker + Renderer)
 ```
 
 #### Testes
@@ -273,17 +274,48 @@ Este meta-repositório provisiona os seguintes serviços via Docker:
 
 ## Module Federation (Blocos do Page Builder)
 
-O projeto usa **Webpack Module Federation** para compartilhar componentes entre aplicações:
+O projeto usa **Vite Module Federation** para compartilhar componentes entre aplicações.
 
-- **Renderer (Host):** Contém e expõe 23+ blocos/seções React
-  - Localização: `apps/atd-workspace-hosting/renderer/src/sections/`
-  - Exemplos: Hero, Gallery, FormContentImage, Header, Footer, etc.
-  - Expõe via: `vite.federation.config.ts`
+### Como Funciona
 
-- **UI (Consumer):** Consome os blocos remotamente no page builder
-  - Configuração: `VITE_MODULE_FEDERATION_URL` no `.env`
-  - Padrão: CloudFront (staging/produção) - não requer renderer local
-  - Desenvolvimento: `http://localhost:5500/` - requer renderer rodando
+**Renderer (Host):** Contém e expõe 23+ blocos/seções React
+- Localização: `apps/atd-workspace-hosting/renderer/src/sections/`
+- Exemplos: Hero, Gallery, FormContentImage, Header, Footer, etc.
+- Expõe via: `vite.federation.config.ts`
+- Servidor: Vite dev server na porta **5500**
+
+**UI (Consumer):** Consome os blocos remotamente no page builder
+- Configuração: `VITE_MODULE_FEDERATION_URL` no `.env`
+- **Padrão**: CloudFront (staging/produção) - não requer renderer local
+- **Desenvolvimento local**: `http://localhost:5500` - requer `make dev-hosting-renderer`
+
+### Variável de Ambiente Importante
+
+```env
+# apps/atd-workspace-ui/.env
+
+# Opção 1: Usar blocos remotos do CloudFront (PADRÃO - recomendado)
+VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
+# ✅ Mais rápido, não precisa rodar renderer local
+# ❌ Não permite testar alterações nos blocos
+
+# Opção 2: Usar blocos do renderer local (desenvolvimento de blocos)
+VITE_MODULE_FEDERATION_URL='http://localhost:5500'
+# ✅ Permite desenvolver e testar blocos com hot reload
+# ❌ Requer rodar: make dev-hosting-renderer
+```
+
+### Comandos Rápidos
+
+```bash
+# Para usar blocos remotos (padrão):
+make dev-ui  # Apenas isso, blocos vêm do CloudFront
+
+# Para desenvolver blocos localmente:
+make dev-hosting-renderer  # Terminal 1: Inicia Vite Federation (porta 5500)
+# Edite .env conforme acima (VITE_MODULE_FEDERATION_URL='http://localhost:5500')
+make dev-ui                # Terminal 2: Inicia UI consumindo blocos locais
+```
 
 **Vantagens:**
 - UI e renderer podem ser desenvolvidos/deployados independentemente
@@ -322,18 +354,18 @@ make dev-ui           # UI consome blocos do CloudFront
 
 **Para desenvolver blocos localmente:**
 
-1. Inicie o renderer:
+1. Inicie o renderer com Module Federation:
 ```bash
-make dev-hosting-renderer  # Sobe renderer em modo dev
+make dev-hosting-renderer  # Sobe Vite Federation Server na porta 5500
 ```
 
 2. Configure a UI para usar renderer local em `apps/atd-workspace-ui/.env`:
 ```env
-# Comentar:
+# Para usar blocos do CloudFront (padrão - não precisa rodar renderer):
 # VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
 
-# Descomentar:
-VITE_MODULE_FEDERATION_URL='http://localhost:5500/'
+# Para usar blocos do renderer local (descomente a linha abaixo):
+VITE_MODULE_FEDERATION_URL='http://localhost:5500'
 ```
 
 3. Reinicie a UI para aplicar mudanças:
@@ -447,23 +479,26 @@ make dev-ui
 
 ## Portas Utilizadas
 
-| Serviço              | Porta | URL                                |
-|----------------------|-------|------------------------------------|
-| UI                   | 3000  | http://localhost:3000              |
-| General API          | 3005  | http://localhost:3005              |
-| Hosting API          | 3001  | http://localhost:3001              |
-| Hosting Renderer     | *     | http://localhost:* (Next.js auto)  |
-| Storybook Renderer   | 6006  | http://localhost:6006              |
-| Storybook UI         | 6007  | http://localhost:6007              |
-| Swagger Docs         | 8080  | http://localhost:8080              |
-| PostgreSQL General   | 5432  | localhost:5432                     |
-| PostgreSQL Hosting   | 5433  | localhost:5433                     |
-| Redis                | 6379  | localhost:6379                     |
-| LocalStack           | 4566  | http://localhost:4566              |
-| Bull Board           | 3001  | http://localhost:3001/bullmq/queues|
+| Serviço                      | Porta | URL                                |
+|------------------------------|-------|------------------------------------|
+| UI                           | 3000  | http://localhost:3000              |
+| General API                  | 3005  | http://localhost:3005              |
+| Hosting API                  | 3001  | http://localhost:3001              |
+| Hosting Renderer (Next.js)   | 3002  | http://localhost:3002 (auto)       |
+| Hosting Renderer (Federation)| 5500  | http://localhost:5500              |
+| Storybook Renderer           | 6006  | http://localhost:6006              |
+| Storybook UI                 | 6007  | http://localhost:6007              |
+| Swagger Docs                 | 8080  | http://localhost:8080              |
+| PostgreSQL General           | 5432  | localhost:5432                     |
+| PostgreSQL Hosting           | 5433  | localhost:5433                     |
+| Redis                        | 6379  | localhost:6379                     |
+| LocalStack                   | 4566  | http://localhost:4566              |
+| Bull Board                   | 3001  | http://localhost:3001/bullmq/queues|
 
 **Notas:**
-- O Hosting Renderer usa Next.js que detecta automaticamente portas disponíveis. Verifique a saída do console ao iniciar para confirmar a porta.
+- **Hosting Renderer tem dois servidores:**
+  - **Next.js (porta auto)**: Para renderizar páginas publicadas (`pnpm dev`)
+  - **Vite Federation (porta 5500)**: Para expor blocos à UI (`pnpm dev-federation`)
 - Os Storybooks usam portas diferentes (6006 e 6007) e podem rodar simultaneamente.
 
 ## Monitoramento

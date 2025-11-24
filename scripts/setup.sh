@@ -56,6 +56,10 @@ echo ""
 # 5. Gerar arquivos .env
 echo -e "${BLUE}[5/7]${NC} Gerando arquivos .env..."
 ./scripts/generate-env.sh
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗ Erro ao gerar arquivos .env. Abortando.${NC}"
+    exit 1
+fi
 echo ""
 
 # 6. Instalar dependências
@@ -73,17 +77,37 @@ echo -e "${BLUE}[7/7]${NC} Executando configurações pós-instalação..."
 # General API - Prisma
 echo -e "${YELLOW}→${NC} General API: Gerando Prisma client e executando migrations..."
 cd apps/atd-workspace-general-api
-npx prisma generate
-npx prisma migrate dev --name init
+if ! npx prisma generate; then
+    echo -e "  ${RED}✗${NC} Erro ao gerar Prisma client (General API)"
+    cd - > /dev/null
+    exit 1
+fi
+if ! npx prisma migrate dev --name init; then
+    echo -e "  ${RED}✗${NC} Erro ao executar migrations (General API)"
+    cd - > /dev/null
+    exit 1
+fi
 cd - > /dev/null
 echo -e "  ${GREEN}✓${NC} General API configurado!"
 
 # Hosting API - Fontes e Prisma
 echo -e "${YELLOW}→${NC} Hosting API: Gerando fontes, Prisma client e executando migrations..."
 cd apps/atd-workspace-hosting
-pnpm --filter static run fonts
-pnpm --filter api run prepare
-pnpm --filter api run migrate
+if ! pnpm --filter static run fonts; then
+    echo -e "  ${RED}✗${NC} Erro ao gerar fontes (Hosting)"
+    cd - > /dev/null
+    exit 1
+fi
+if ! pnpm --filter api run prepare; then
+    echo -e "  ${RED}✗${NC} Erro ao executar prepare (Hosting API)"
+    cd - > /dev/null
+    exit 1
+fi
+if ! pnpm --filter api run migrate; then
+    echo -e "  ${RED}✗${NC} Erro ao executar migrations (Hosting API)"
+    cd - > /dev/null
+    exit 1
+fi
 cd - > /dev/null
 echo -e "  ${GREEN}✓${NC} Hosting API configurado!"
 

@@ -35,19 +35,33 @@ for ((i=0; i<$REPO_COUNT; i++)); do
         echo -e "  ${YELLOW}⚠${NC} Diretório já existe: $DIR"
         echo -e "  ${BLUE}ℹ${NC} Atualizando repositório..."
         cd "$DIR"
-        git fetch origin
-        git checkout "$BRANCH"
-        git pull origin "$BRANCH"
+
+        if ! git fetch origin; then
+            echo -e "  ${RED}✗${NC} Erro ao fazer fetch de $NAME"
+            cd - > /dev/null
+            exit 1
+        fi
+
+        if ! git checkout "$BRANCH"; then
+            echo -e "  ${RED}✗${NC} Erro ao fazer checkout da branch $BRANCH para $NAME"
+            cd - > /dev/null
+            exit 1
+        fi
+
+        if ! git pull origin "$BRANCH"; then
+            echo -e "  ${RED}✗${NC} Erro ao fazer pull de $NAME"
+            cd - > /dev/null
+            exit 1
+        fi
+
         cd - > /dev/null
         echo -e "  ${GREEN}✓${NC} Atualizado!"
     else
-        git clone --branch "$BRANCH" "$URL" "$DIR"
-        if [ $? -eq 0 ]; then
-            echo -e "  ${GREEN}✓${NC} Clonado com sucesso!"
-        else
+        if ! git clone --branch "$BRANCH" "$URL" "$DIR"; then
             echo -e "  ${RED}✗${NC} Erro ao clonar $NAME"
             exit 1
         fi
+        echo -e "  ${GREEN}✓${NC} Clonado com sucesso!"
     fi
 
     echo ""

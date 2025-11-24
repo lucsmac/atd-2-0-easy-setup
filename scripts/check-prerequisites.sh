@@ -89,6 +89,18 @@ else
     ALL_OK=false
 fi
 
+# Verificar jq
+if command -v jq &> /dev/null; then
+    JQ_VERSION=$(jq --version | awk -F'-' '{print $2}')
+    echo -e "${GREEN}✓${NC} jq:       $JQ_VERSION"
+else
+    echo -e "${RED}✗${NC} jq não encontrado (necessário para clonar repositórios)"
+    echo -e "   ${YELLOW}macOS:${NC} brew install jq"
+    echo -e "   ${YELLOW}Ubuntu/Debian:${NC} sudo apt-get install jq"
+    echo -e "   ${YELLOW}Windows:${NC} choco install jq (via Chocolatey) ou use WSL2"
+    ALL_OK=false
+fi
+
 echo ""
 if [ "$ALL_OK" = true ]; then
     echo -e "${GREEN}✓ Todos os pré-requisitos atendidos!${NC}"

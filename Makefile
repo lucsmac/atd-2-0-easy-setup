@@ -1,9 +1,11 @@
-.PHONY: help check setup clone update install services services-stop services-restart services-status services-logs services-reset
-.PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-apis dev-hosting
-.PHONY: test test-ui test-general-api test-hosting test-watch coverage
-.PHONY: build build-ui build-general-api build-hosting
-.PHONY: db-migrate db-migrate-general db-migrate-hosting db-studio-general db-studio-hosting db-reset db-seed
-.PHONY: clean clean-ui clean-general-api clean-hosting clean-all purge
+.PHONY: help check setup clone update install install-ui install-general-api install-hosting install-cms install-crm
+.PHONY: services services-stop services-restart services-status services-logs services-reset
+.PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-cms dev-cms-worker dev-crm dev-apis dev-hosting
+.PHONY: test test-ui test-general-api test-hosting test-cms test-crm test-watch coverage
+.PHONY: build build-ui build-general-api build-hosting build-cms build-crm
+.PHONY: db-migrate db-migrate-general db-migrate-hosting db-migrate-cms db-migrate-crm
+.PHONY: db-studio-general db-studio-hosting db-studio-cms db-studio-crm db-reset db-reset-general db-reset-hosting db-reset-cms db-reset-crm db-seed
+.PHONY: clean clean-ui clean-general-api clean-hosting clean-cms clean-crm clean-all purge
 .PHONY: env-generate env-regenerate env-validate status logs lint lint-fix format format-check
 .PHONY: docs docs-build docs-serve docs-open
 .PHONY: storybook-ui storybook-renderer storybook-build storybook-build-ui storybook-build-renderer
@@ -53,9 +55,15 @@ install-general-api: ## Instala deps apenas da General API
 install-hosting: ## Instala deps apenas do Hosting
 	@cd apps/atd-workspace-hosting && pnpm install
 
+install-cms: ## Instala deps apenas da CMS API
+	@cd apps/atd-workspace-cms-api && npm install
+
+install-crm: ## Instala deps apenas da CRM API
+	@cd apps/atd-workspace-crm && npm install
+
 ##@ Serviços Docker
 
-services: ## Inicia todos os serviços Docker (PostgreSQL x2, Redis, LocalStack)
+services: ## Inicia todos os serviços Docker (PostgreSQL x4, Redis x3, OpenSearch, LocalStack)
 	@echo "$(BLUE)🐳 Iniciando serviços Docker...$(NC)"
 	@docker-compose up -d
 	@./scripts/wait-for-services.sh
@@ -118,6 +126,25 @@ dev-hosting-renderer: services ## Inicia Hosting Renderer com Module Federation 
 	@echo ""
 	@cd apps/atd-workspace-hosting/renderer && pnpm dev-federation
 
+dev-cms: services ## Inicia CMS API (porta 3011)
+	@echo "$(BLUE)📦 Iniciando CMS API...$(NC)"
+	@echo "$(YELLOW)ℹ  API disponível em: http://localhost:3011$(NC)"
+	@echo "$(YELLOW)ℹ  BullBoard (filas): http://localhost:3011/admin/queues$(NC)"
+	@echo "$(YELLOW)ℹ  OpenSearch Dashboards: http://localhost:5601$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-cms-api && npm run dev
+
+dev-cms-worker: services ## Inicia CMS Worker (processamento de filas BullMQ)
+	@echo "$(BLUE)⚙️  Iniciando CMS Worker...$(NC)"
+	@cd apps/atd-workspace-cms-api && npm run dev:worker
+
+dev-crm: services ## Inicia CRM API (porta 3010)
+	@echo "$(BLUE)👥 Iniciando CRM API...$(NC)"
+	@echo "$(YELLOW)ℹ  API disponível em: http://localhost:3010$(NC)"
+	@echo "$(YELLOW)ℹ  Swagger UI: http://localhost:3010/api-docs$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-crm && npm run dev
+
 dev-apis: services ## Inicia General API + Hosting API + Worker
 	@echo "$(BLUE)🔧 Iniciando todas as APIs...$(NC)"
 	@trap 'kill 0' EXIT; \
@@ -141,6 +168,8 @@ test: ## Executa testes de todos os projetos
 	@$(MAKE) test-ui
 	@$(MAKE) test-general-api
 	@$(MAKE) test-hosting
+	@$(MAKE) test-cms
+	@$(MAKE) test-crm
 
 test-ui: ## Testes da UI (Vitest)
 	@echo "$(BLUE)🧪 Testando UI...$(NC)"
@@ -170,12 +199,28 @@ test-hosting-api: ## Testes apenas Hosting API
 test-hosting-renderer: ## Testes apenas Hosting Renderer
 	@cd apps/atd-workspace-hosting && pnpm --filter renderer unit-test
 
+test-cms: ## Testes da CMS API (Vitest)
+	@echo "$(BLUE)🧪 Testando CMS API...$(NC)"
+	@cd apps/atd-workspace-cms-api && npm run test-ci
+
+test-cms-watch: ## Testes da CMS API em watch mode
+	@cd apps/atd-workspace-cms-api && npm test
+
+test-crm: ## Testes da CRM API (Vitest)
+	@echo "$(BLUE)🧪 Testando CRM API...$(NC)"
+	@cd apps/atd-workspace-crm && npm run test-ci
+
+test-crm-watch: ## Testes da CRM API em watch mode
+	@cd apps/atd-workspace-crm && npm test
+
 coverage: ## Gera relatórios de cobertura de todos os projetos
 	@echo "$(BLUE)📊 Gerando relatórios de cobertura...$(NC)"
 	@cd apps/atd-workspace-ui && npm run test-ci
 	@cd apps/atd-workspace-general-api && yarn coverage
 	@cd apps/atd-workspace-hosting && pnpm --filter api test-ci
 	@cd apps/atd-workspace-hosting && pnpm --filter renderer unit-test-ci
+	@cd apps/atd-workspace-cms-api && npm run test-ci
+	@cd apps/atd-workspace-crm && npm run test-ci
 
 ##@ Build
 
@@ -184,6 +229,8 @@ build: ## Build de todos os projetos
 	@$(MAKE) build-ui
 	@$(MAKE) build-general-api
 	@$(MAKE) build-hosting
+	@$(MAKE) build-cms
+	@$(MAKE) build-crm
 
 build-ui: ## Build apenas UI
 	@echo "$(BLUE)🏗️  Building UI...$(NC)"
@@ -199,11 +246,21 @@ build-hosting: ## Build apenas Hosting
 	@cd apps/atd-workspace-hosting && pnpm --filter renderer build
 	@cd apps/atd-workspace-hosting && pnpm --filter renderer publish-federation
 
+build-cms: ## Build apenas CMS API
+	@echo "$(BLUE)🏗️  Building CMS API...$(NC)"
+	@cd apps/atd-workspace-cms-api && npm run build
+
+build-crm: ## Build apenas CRM API
+	@echo "$(BLUE)🏗️  Building CRM API...$(NC)"
+	@cd apps/atd-workspace-crm && npm run build
+
 ##@ Banco de Dados
 
-db-migrate: ## Executa migrations em ambos os bancos
+db-migrate: ## Executa migrations em todos os bancos
 	@$(MAKE) db-migrate-general
 	@$(MAKE) db-migrate-hosting
+	@$(MAKE) db-migrate-cms
+	@$(MAKE) db-migrate-crm
 
 db-migrate-general: ## Migration apenas General API
 	@echo "$(BLUE)🗄️  Migrando General API database...$(NC)"
@@ -213,6 +270,14 @@ db-migrate-hosting: ## Migration apenas Hosting API
 	@echo "$(BLUE)🗄️  Migrando Hosting API database...$(NC)"
 	@cd apps/atd-workspace-hosting && pnpm --filter api run migrate
 
+db-migrate-cms: ## Migration apenas CMS API
+	@echo "$(BLUE)🗄️  Migrando CMS API database...$(NC)"
+	@cd apps/atd-workspace-cms-api && npx prisma migrate dev
+
+db-migrate-crm: ## Migration apenas CRM API
+	@echo "$(BLUE)🗄️  Migrando CRM API database...$(NC)"
+	@cd apps/atd-workspace-crm && npx prisma migrate dev
+
 db-studio-general: ## Abre Prisma Studio (General API)
 	@echo "$(BLUE)🖥️  Abrindo Prisma Studio (General API)...$(NC)"
 	@cd apps/atd-workspace-general-api && npx prisma studio
@@ -221,17 +286,33 @@ db-studio-hosting: ## Abre Prisma Studio (Hosting API)
 	@echo "$(BLUE)🖥️  Abrindo Prisma Studio (Hosting API)...$(NC)"
 	@cd apps/atd-workspace-hosting/api && npx prisma studio
 
-db-reset: ## ⚠️  Reset ambos os bancos (apaga dados!)
+db-studio-cms: ## Abre Prisma Studio (CMS API)
+	@echo "$(BLUE)🖥️  Abrindo Prisma Studio (CMS API)...$(NC)"
+	@cd apps/atd-workspace-cms-api && npx prisma studio
+
+db-studio-crm: ## Abre Prisma Studio (CRM API)
+	@echo "$(BLUE)🖥️  Abrindo Prisma Studio (CRM API)...$(NC)"
+	@cd apps/atd-workspace-crm && npx prisma studio
+
+db-reset: ## ⚠️  Reset todos os bancos (apaga dados!)
 	@echo "$(RED)⚠️  ATENÇÃO: Isso irá apagar TODOS OS DADOS dos bancos!$(NC)"
 	@read -p "Tem certeza? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
 	@$(MAKE) db-reset-general
 	@$(MAKE) db-reset-hosting
+	@$(MAKE) db-reset-cms
+	@$(MAKE) db-reset-crm
 
 db-reset-general: ## Reset apenas General API database
 	@cd apps/atd-workspace-general-api && npx prisma migrate reset --force
 
 db-reset-hosting: ## Reset apenas Hosting API database
 	@cd apps/atd-workspace-hosting/api && npx prisma migrate reset --force
+
+db-reset-cms: ## Reset apenas CMS API database
+	@cd apps/atd-workspace-cms-api && npx prisma migrate reset --force
+
+db-reset-crm: ## Reset apenas CRM API database
+	@cd apps/atd-workspace-crm && npx prisma migrate reset --force
 
 db-seed: ## Popula bancos com dados de exemplo
 	@echo "$(BLUE)🌱 Populando bancos com dados de exemplo...$(NC)"
@@ -260,6 +341,8 @@ clean: ## Remove node_modules, dist, .next, cache
 	@rm -rf apps/atd-workspace-ui/node_modules apps/atd-workspace-ui/dist apps/atd-workspace-ui/.next
 	@rm -rf apps/atd-workspace-general-api/node_modules apps/atd-workspace-general-api/dist
 	@rm -rf apps/atd-workspace-hosting/node_modules apps/atd-workspace-hosting/api/dist apps/atd-workspace-hosting/renderer/.next
+	@rm -rf apps/atd-workspace-cms-api/node_modules apps/atd-workspace-cms-api/dist
+	@rm -rf apps/atd-workspace-crm/node_modules apps/atd-workspace-crm/dist
 	@echo "$(GREEN)✓ Limpeza concluída$(NC)"
 
 clean-ui: ## Limpa apenas UI
@@ -270,6 +353,12 @@ clean-general-api: ## Limpa apenas General API
 
 clean-hosting: ## Limpa apenas Hosting
 	@rm -rf apps/atd-workspace-hosting/node_modules apps/atd-workspace-hosting/api/dist apps/atd-workspace-hosting/renderer/.next
+
+clean-cms: ## Limpa apenas CMS API
+	@rm -rf apps/atd-workspace-cms-api/node_modules apps/atd-workspace-cms-api/dist
+
+clean-crm: ## Limpa apenas CRM API
+	@rm -rf apps/atd-workspace-crm/node_modules apps/atd-workspace-crm/dist
 
 clean-all: ## Limpa tudo + reset de serviços Docker
 	@echo "$(RED)⚠️  Limpando TUDO (arquivos + Docker)...$(NC)"
@@ -309,7 +398,7 @@ logs: ## Visualiza logs de todas as aplicações
 	@docker-compose logs -f
 
 logs-services: ## Logs apenas dos serviços Docker
-	@docker-compose logs -f postgres-general postgres-hosting redis localstack
+	@docker-compose logs -f postgres-general postgres-hosting postgres-cms postgres-crm redis redis-cms-batch redis-cms-search opensearch-cms localstack
 
 logs-ui: ## Logs apenas da UI
 	@echo "$(YELLOW)ℹ  Execute em outro terminal: cd apps/atd-workspace-ui && npm run dev$(NC)"
@@ -319,6 +408,12 @@ logs-general-api: ## Logs apenas da General API
 
 logs-hosting: ## Logs do Hosting (API + Worker + Renderer)
 	@echo "$(YELLOW)ℹ  Execute em outro terminal: make dev-hosting$(NC)"
+
+logs-cms: ## Logs da CMS API
+	@echo "$(YELLOW)ℹ  Execute em outro terminal: make dev-cms$(NC)"
+
+logs-crm: ## Logs da CRM API
+	@echo "$(YELLOW)ℹ  Execute em outro terminal: make dev-crm$(NC)"
 
 lint: ## Executa ESLint em todos os projetos
 	@echo "$(BLUE)🔍 Executando linting...$(NC)"

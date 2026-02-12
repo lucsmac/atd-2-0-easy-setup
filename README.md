@@ -4,14 +4,16 @@ Este é o repositório centralizador do **Autódromo 2.0**, uma plataforma multi
 
 ## Visão Geral
 
-O Autódromo 2.0 é composto por três aplicações principais:
+O Autódromo 2.0 é composto por cinco aplicações principais:
 
-- **atd-workspace-ui** - Interface de usuário (Next.js + React)
-- **atd-workspace-general-api** - API de propósito geral (NestJS)
-- **atd-workspace-hosting** - Sistema de hospedagem multi-tenant (NestJS + Module Federation)
+- **atd-workspace-ui** - Interface de usuário (Vite + React)
+- **atd-workspace-general-api** - API de propósito geral (Express + TypeScript)
+- **atd-workspace-hosting** - Sistema de hospedagem multi-tenant (Express + Next.js + Module Federation)
+- **atd-workspace-cms-api** - API de gerenciamento de conteúdo dinâmico (Express + TypeScript + OpenSearch)
+- **atd-workspace-crm** - API de CRM (Express + TypeScript + BullMQ)
 
 Este repositório não contém o código das aplicações em si. Ele fornece:
-- Configuração Docker para serviços de infraestrutura (PostgreSQL, Redis, LocalStack)
+- Configuração Docker para serviços de infraestrutura (PostgreSQL, Redis, OpenSearch, LocalStack)
 - Scripts de automação para setup e gerenciamento
 - Makefile com comandos para todas as operações comuns
 - Templates de configuração (.env)
@@ -19,23 +21,26 @@ Este repositório não contém o código das aplicações em si. Ele fornece:
 ## Arquitetura
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Autódromo 2.0                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐  │
-│  │     UI      │  │  General API │  │  Hosting System │  │
-│  │  (Next.js)  │  │   (NestJS)   │  │  (API+Worker)   │  │
-│  │   Port 3000 │  │   Port 3005  │  │   Port 3000     │  │
-│  └──────┬──────┘  └──────┬───────┘  └────────┬────────┘  │
-│         │                │                    │            │
-│  ┌──────┴────────────────┴────────────────────┴────────┐  │
-│  │            Docker Services (Infraestrutura)         │  │
-│  ├─────────────────────────────────────────────────────┤  │
-│  │ PostgreSQL General (5432) │ PostgreSQL Hosting (5433)│ │
-│  │ Redis (6379)              │ LocalStack (4566)        │ │
-│  └─────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            Autódromo 2.0                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────┐  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  ┌────────┐ │
+│  │    UI    │  │ General API │  │   Hosting    │  │ CMS API  │  │  CRM   │ │
+│  │  (Vite)  │  │  (Express)  │  │(Express+Next)│  │(Express) │  │(Express│ │
+│  │Port 3000 │  │  Port 3005  │  │  Port 3001   │  │Port 3011 │  │Port 3010│ │
+│  └─────┬────┘  └──────┬──────┘  └───────┬──────┘  └─────┬────┘  └────┬───┘ │
+│        │              │                  │                │            │     │
+│  ┌─────┴──────────────┴──────────────────┴────────────────┴────────────┴──┐ │
+│  │                 Docker Services (Infraestrutura)                       │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │ PostgreSQL General (5432)  │ PostgreSQL Hosting (5433)                 │ │
+│  │ PostgreSQL CMS (5434)      │ PostgreSQL CRM (5435)                     │ │
+│  │ Redis Main (6379)          │ Redis CMS Batch (6380)                    │ │
+│  │ Redis CMS Search (6381)    │ OpenSearch CMS (9200)                     │ │
+│  │ LocalStack AWS (4566)      │                                           │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Pré-requisitos
@@ -263,9 +268,36 @@ Este meta-repositório provisiona os seguintes serviços via Docker:
 - Database: `atd_hosting`
 - User/Password: `atd` / `atd123`
 
-### Redis (Porta 6379)
-- Usado para filas BullMQ no Hosting Worker
+### PostgreSQL CMS (Porta 5434)
+- Usado pela CMS API
+- Database: `atd_cms`
+- User/Password: `atd` / `atd123`
+
+### PostgreSQL CRM (Porta 5435)
+- Usado pela CRM API
+- Database: `atd_crm`
+- User/Password: `atd` / `atd123`
+
+### Redis Main (Porta 6379)
+- Usado para filas BullMQ no Hosting Worker e CRM API
+- Compartilhado entre Hosting e CRM
 - Sem autenticação em desenvolvimento
+
+### Redis CMS Batch (Porta 6380)
+- Usado para processamento em lote da CMS API
+- Filas: batch-sync, entry-process, cleanup
+- Sem autenticação em desenvolvimento
+
+### Redis CMS Search (Porta 6381)
+- Usado para indexação de busca da CMS API
+- Fila: search-indexer
+- Sem autenticação em desenvolvimento
+
+### OpenSearch CMS (Porta 9200)
+- Motor de busca full-text para CMS API
+- Interface: OpenSearch Dashboards (porta 5601)
+- URL: http://localhost:9200
+- Dashboards: http://localhost:5601
 
 ### LocalStack (Porta 4566)
 - Mock de serviços AWS para desenvolvimento local
@@ -484,6 +516,8 @@ make dev-ui
 | UI                           | 3000  | http://localhost:3000              |
 | General API                  | 3005  | http://localhost:3005              |
 | Hosting API                  | 3001  | http://localhost:3001              |
+| CRM API                      | 3010  | http://localhost:3010              |
+| CMS API                      | 3011  | http://localhost:3011              |
 | Hosting Renderer (Next.js)   | 3002  | http://localhost:3002 (auto)       |
 | Hosting Renderer (Federation)| 5500  | http://localhost:5500              |
 | Storybook Renderer           | 6006  | http://localhost:6006              |
@@ -491,9 +525,17 @@ make dev-ui
 | Swagger Docs                 | 8080  | http://localhost:8080              |
 | PostgreSQL General           | 5432  | localhost:5432                     |
 | PostgreSQL Hosting           | 5433  | localhost:5433                     |
-| Redis                        | 6379  | localhost:6379                     |
+| PostgreSQL CMS               | 5434  | localhost:5434                     |
+| PostgreSQL CRM               | 5435  | localhost:5435                     |
+| Redis Main (Hosting+CRM)     | 6379  | localhost:6379                     |
+| Redis CMS Batch              | 6380  | localhost:6380                     |
+| Redis CMS Search             | 6381  | localhost:6381                     |
+| OpenSearch CMS               | 9200  | http://localhost:9200              |
+| OpenSearch Dashboards        | 5601  | http://localhost:5601              |
 | LocalStack                   | 4566  | http://localhost:4566              |
-| Bull Board                   | 3001  | http://localhost:3001/bullmq/queues|
+| Bull Board (Hosting)         | 3001  | http://localhost:3001/bullmq/queues|
+| Bull Board (CMS)             | 3011  | http://localhost:3011/admin/queues |
+| Swagger UI (CRM)             | 3010  | http://localhost:3010/api-docs     |
 
 **Notas:**
 - **Hosting Renderer tem dois servidores:**
@@ -558,6 +600,8 @@ make services-logs      # Logs em tempo real
 - [General API - Documentação Completa](./apps/atd-workspace-general-api/README.md)
 - [Hosting - Documentação Completa](./apps/atd-workspace-hosting/README.md)
 - [Hosting - Processo de Publicação](./apps/atd-workspace-hosting/PUBLICATION_PROCESS.md)
+- [CMS API - Documentação Completa](./apps/atd-workspace-cms-api/README.md)
+- [CRM API - Documentação Completa](./apps/atd-workspace-crm/README.md)
 - [CLAUDE.md - Guia para IA](./CLAUDE.md)
 
 ### Documentação Swagger

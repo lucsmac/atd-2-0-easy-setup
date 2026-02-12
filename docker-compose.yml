@@ -41,6 +41,46 @@ services:
     networks:
       - atd-network
 
+  # PostgreSQL para CMS API
+  postgres-cms:
+    image: postgres:14.10-alpine
+    container_name: atd-postgres-cms
+    environment:
+      POSTGRES_DB: atd_cms
+      POSTGRES_USER: atd
+      POSTGRES_PASSWORD: atd123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-cms-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atd -d atd_cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atd-network
+
+  # PostgreSQL para CRM API
+  postgres-crm:
+    image: postgres:14.10-alpine
+    container_name: atd-postgres-crm
+    environment:
+      POSTGRES_DB: atd_crm
+      POSTGRES_USER: atd
+      POSTGRES_PASSWORD: atd123
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-crm-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atd -d atd_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atd-network
+
   # Redis para BullMQ (Hosting Worker)
   redis:
     image: redis:7-alpine
@@ -54,6 +94,86 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - atd-network
+
+  # Redis para CMS Batch Processing
+  redis-cms-batch:
+    image: redis:7-alpine
+    container_name: atd-redis-cms-batch
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-cms-batch-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+
+  # Redis para CMS Search Indexer
+  redis-cms-search:
+    image: redis:7-alpine
+    container_name: atd-redis-cms-search
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-cms-search-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+
+  # OpenSearch para CMS Full-Text Search
+  opensearch-cms:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: atd-opensearch-cms
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - plugins.security.disabled=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch-cms-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - atd-network
+
+  # OpenSearch Dashboards para CMS
+  opensearch-dashboards-cms:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: atd-opensearch-dashboards-cms
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch-cms:9200
+      - OPENSEARCH_SSL_VERIFICATIONMODE=none
+      - SERVER_SSL_ENABLED=false
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      - opensearch_security.disabled=true
+    depends_on:
+      - opensearch-cms
+    ports:
+      - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - atd-network
 
@@ -87,7 +207,17 @@ volumes:
     driver: local
   postgres-hosting-data:
     driver: local
+  postgres-cms-data:
+    driver: local
+  postgres-crm-data:
+    driver: local
   redis-data:
+    driver: local
+  redis-cms-batch-data:
+    driver: local
+  redis-cms-search-data:
+    driver: local
+  opensearch-cms-data:
     driver: local
   localstack-data:
     driver: local

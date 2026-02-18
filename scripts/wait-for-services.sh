@@ -42,9 +42,29 @@ check_service "PostgreSQL (General)" "docker exec atd-postgres-general pg_isread
 ATTEMPT=0
 check_service "PostgreSQL (Hosting)" "docker exec atd-postgres-hosting pg_isready -U atd -d atd_hosting"
 
-# Redis
+# PostgreSQL CMS
 ATTEMPT=0
-check_service "Redis" "docker exec atd-redis redis-cli ping"
+check_service "PostgreSQL (CMS)" "docker exec atd-postgres-cms pg_isready -U atd -d atd_cms"
+
+# PostgreSQL CRM
+ATTEMPT=0
+check_service "PostgreSQL (CRM)" "docker exec atd-postgres-crm pg_isready -U atd -d atd_crm"
+
+# Redis (Main - Hosting + CRM)
+ATTEMPT=0
+check_service "Redis (Main)" "docker exec atd-redis redis-cli ping"
+
+# Redis CMS Batch
+ATTEMPT=0
+check_service "Redis (CMS Batch)" "docker exec atd-redis-cms-batch redis-cli ping"
+
+# Redis CMS Search
+ATTEMPT=0
+check_service "Redis (CMS Search)" "docker exec atd-redis-cms-search redis-cli ping"
+
+# OpenSearch CMS
+ATTEMPT=0
+check_service "OpenSearch (CMS)" "curl -s http://localhost:9200/_cluster/health"
 
 # LocalStack
 ATTEMPT=0

@@ -4,16 +4,19 @@ Este é o repositório centralizador do **Autódromo 2.0**, uma plataforma multi
 
 ## Visão Geral
 
-O Autódromo 2.0 é composto por cinco aplicações principais:
+O Autódromo 2.0 é composto por seis aplicações principais:
 
-- **atd-workspace-ui** - Interface de usuário (Vite + React)
-- **atd-workspace-general-api** - API de propósito geral (Express + TypeScript)
-- **atd-workspace-hosting** - Sistema de hospedagem multi-tenant (Express + Next.js + Module Federation)
-- **atd-workspace-cms-api** - API de gerenciamento de conteúdo dinâmico (Express + TypeScript + OpenSearch)
-- **atd-workspace-crm** - API de CRM (Express + TypeScript + BullMQ)
+| Aplicação | Descrição | Tecnologias | Porta |
+|-----------|-----------|-------------|-------|
+| **atd-workspace-ui** | Interface de usuário (page builder) | Vite + React | 3000 |
+| **atd-workspace-general-api** | API de autenticação e contas | Express + TypeScript | 3005 |
+| **atd-workspace-hosting** | Sistema de hospedagem e publicação | Express + Next.js | 3001 |
+| **atd-workspace-cms-api** | API de gerenciamento de conteúdo | Express + OpenSearch | 3011 |
+| **atd-workspace-crm** | API de CRM | Express + BullMQ | 3010 |
+| **atd-workspace-renderer** | Renderer standalone (Next.js) | Next.js + Module Federation | 3000/5500 |
 
 Este repositório não contém o código das aplicações em si. Ele fornece:
-- Configuração Docker para serviços de infraestrutura (PostgreSQL, Redis, OpenSearch, LocalStack)
+- Configuração Docker para serviços de infraestrutura (PostgreSQL x4, Redis x3, OpenSearch, LocalStack)
 - Scripts de automação para setup e gerenciamento
 - Makefile com comandos para todas as operações comuns
 - Templates de configuração (.env)
@@ -21,26 +24,25 @@ Este repositório não contém o código das aplicações em si. Ele fornece:
 ## Arquitetura
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                            Autódromo 2.0                                     │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────┐  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  ┌────────┐ │
-│  │    UI    │  │ General API │  │   Hosting    │  │ CMS API  │  │  CRM   │ │
-│  │  (Vite)  │  │  (Express)  │  │(Express+Next)│  │(Express) │  │(Express│ │
-│  │Port 3000 │  │  Port 3005  │  │  Port 3001   │  │Port 3011 │  │Port 3010│ │
-│  └─────┬────┘  └──────┬──────┘  └───────┬──────┘  └─────┬────┘  └────┬───┘ │
-│        │              │                  │                │            │     │
-│  ┌─────┴──────────────┴──────────────────┴────────────────┴────────────┴──┐ │
-│  │                 Docker Services (Infraestrutura)                       │ │
-│  ├────────────────────────────────────────────────────────────────────────┤ │
-│  │ PostgreSQL General (5432)  │ PostgreSQL Hosting (5433)                 │ │
-│  │ PostgreSQL CMS (5434)      │ PostgreSQL CRM (5435)                     │ │
-│  │ Redis Main (6379)          │ Redis CMS Batch (6380)                    │ │
-│  │ Redis CMS Search (6381)    │ OpenSearch CMS (9200)                     │ │
-│  │ LocalStack AWS (4566)      │                                           │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              Autódromo 2.0                                          │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  ┌──────────┐  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  ┌────────┐  ┌────────┐
+│  │    UI    │  │ General API │  │   Hosting    │  │ CMS API  │  │  CRM   │  │Renderer│
+│  │  (Vite)  │  │  (Express)  │  │(Express+Next)│  │(Express) │  │(Express│  │(Next.js│
+│  │Port 3000 │  │  Port 3005  │  │  Port 3001   │  │Port 3011 │  │Port 3010│ │Port 5500│
+│  └─────┬────┘  └──────┬──────┘  └───────┬──────┘  └─────┬────┘  └────┬───┘  └───┬────┘
+│        │              │                  │                │            │          │
+│  ┌─────┴──────────────┴──────────────────┴────────────────┴────────────┴──────────┴─┐
+│  │                   Docker Services (Infraestrutura)                               │
+│  ├──────────────────────────────────────────────────────────────────────────────────┤
+│  │ PostgreSQL General (5432)  │ PostgreSQL Hosting (5433)                           │
+│  │ PostgreSQL CMS (5434)      │ PostgreSQL CRM (5435)                               │
+│  │ Redis Main (6379)          │ Redis CMS Batch (6380) │ Redis CMS Search (6381)    │
+│  │ OpenSearch CMS (9200)      │ LocalStack AWS (4566)                               │
+│  └──────────────────────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Pré-requisitos
@@ -69,11 +71,11 @@ make setup
 
 Este comando irá:
 1. Verificar todos os pré-requisitos
-2. Clonar os três repositórios de aplicações
-3. Iniciar os serviços Docker (PostgreSQL, Redis, LocalStack)
+2. Clonar os seis repositórios de aplicações
+3. Iniciar os serviços Docker (PostgreSQL x4, Redis x3, OpenSearch, LocalStack)
 4. Gerar arquivos `.env` a partir dos templates
 5. Instalar dependências de todas as aplicações
-6. Executar migrations e configurações iniciais
+6. Executar migrations e configurações iniciais (Prisma generate para todas as APIs)
 
 ### 3. Configure credenciais reais
 
@@ -108,6 +110,24 @@ PUSHER_SECRET=seu_secret
 PUSHER_CLUSTER=sua_cluster
 ```
 
+**apps/atd-workspace-cms-api/.env**
+```env
+# AWS Cognito
+COGNITO_USER_POOL_ID=us-east-1_xxxxx
+COGNITO_CLIENT_ID=xxxxx
+
+# AWS S3
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=seu_bucket
+```
+
+**apps/atd-workspace-crm/.env**
+```env
+# AWS Cognito
+COGNITO_USER_POOL_ID=us-east-1_xxxxx
+COGNITO_CLIENT_ID=xxxxx
+```
+
 ### 4. Inicie as aplicações
 
 ```bash
@@ -132,9 +152,19 @@ make install            # Instala dependências
 make reclone            # Remove apps/ e clona novamente
 ```
 
+#### Instalação Individual
+```bash
+make install-ui             # Instala deps da UI
+make install-general-api    # Instala deps da General API
+make install-hosting        # Instala deps do Hosting
+make install-cms            # Instala deps da CMS API
+make install-crm            # Instala deps da CRM API
+make install-renderer       # Instala deps do Renderer standalone
+```
+
 #### Serviços Docker
 ```bash
-make services           # Inicia serviços (PostgreSQL, Redis, LocalStack)
+make services           # Inicia serviços (PostgreSQL x4, Redis x3, OpenSearch, LocalStack)
 make services-stop      # Para serviços
 make services-restart   # Reinicia serviços
 make services-status    # Status dos serviços
@@ -149,8 +179,13 @@ make dev-ui                # Inicia apenas UI (porta 3000)
 make dev-general-api       # Inicia apenas General API (porta 3005)
 make dev-hosting-api       # Inicia apenas Hosting API (porta 3001)
 make dev-hosting-worker    # Inicia apenas Hosting Worker (BullMQ)
-make dev-hosting-renderer  # Inicia Renderer Federation (porta 5500) para UI consumir blocos
-make dev-apis              # Inicia General API + Hosting API + Worker
+make dev-hosting-renderer  # Inicia Hosting Renderer Federation (porta 5500)
+make dev-cms               # Inicia CMS API (porta 3011)
+make dev-cms-worker        # Inicia CMS Worker (BullMQ)
+make dev-crm               # Inicia CRM API (porta 3010)
+make dev-renderer          # Inicia Renderer standalone (porta 3000)
+make dev-renderer-federation # Inicia Renderer Federation (porta 5500)
+make dev-apis              # Inicia TODAS as APIs (General + Hosting + CMS + CRM)
 make dev-hosting           # Inicia Hosting completo (API + Worker + Renderer)
 ```
 
@@ -158,8 +193,17 @@ make dev-hosting           # Inicia Hosting completo (API + Worker + Renderer)
 ```bash
 make test               # Executa todos os testes
 make test-ui            # Testes da UI
+make test-ui-watch      # Testes da UI em watch mode
+make test-ui-e2e        # Testes E2E da UI (Cypress)
 make test-general-api   # Testes da General API
-make test-hosting       # Testes do Hosting
+make test-hosting       # Testes do Hosting (API + Renderer)
+make test-hosting-api   # Testes apenas Hosting API
+make test-hosting-renderer # Testes apenas Hosting Renderer
+make test-cms           # Testes da CMS API
+make test-cms-watch     # Testes da CMS API em watch mode
+make test-crm           # Testes da CRM API
+make test-crm-watch     # Testes da CRM API em watch mode
+make test-renderer      # Lint do Renderer standalone
 make coverage           # Gera relatórios de cobertura
 ```
 
@@ -169,16 +213,27 @@ make build              # Build de todos os projetos
 make build-ui           # Build apenas UI
 make build-general-api  # Build apenas General API
 make build-hosting      # Build apenas Hosting
+make build-cms          # Build apenas CMS API
+make build-crm          # Build apenas CRM API
+make build-renderer     # Build Renderer standalone (Next.js + Module Federation)
 ```
 
 #### Banco de Dados
 ```bash
-make db-migrate         # Executa migrations em ambos os bancos
+make db-migrate         # Executa migrations em todos os bancos
 make db-migrate-general # Migration apenas General API
 make db-migrate-hosting # Migration apenas Hosting
+make db-migrate-cms     # Migration apenas CMS API
+make db-migrate-crm     # Migration apenas CRM API
 make db-studio-general  # Abre Prisma Studio (General API)
 make db-studio-hosting  # Abre Prisma Studio (Hosting)
-make db-reset           # Reset de ambos os bancos (APAGA DADOS!)
+make db-studio-cms      # Abre Prisma Studio (CMS API)
+make db-studio-crm      # Abre Prisma Studio (CRM API)
+make db-reset           # Reset de todos os bancos (APAGA DADOS!)
+make db-reset-general   # Reset apenas General API
+make db-reset-hosting   # Reset apenas Hosting
+make db-reset-cms       # Reset apenas CMS API
+make db-reset-crm       # Reset apenas CRM API
 ```
 
 #### Variáveis de Ambiente
@@ -189,10 +244,13 @@ make env-regenerate     # Regenera .env (sobrescreve existentes)
 
 #### Limpeza
 ```bash
-make clean              # Remove node_modules, dist, cache
+make clean              # Remove node_modules, dist, cache de todos
 make clean-ui           # Limpa apenas UI
 make clean-general-api  # Limpa apenas General API
 make clean-hosting      # Limpa apenas Hosting
+make clean-cms          # Limpa apenas CMS API
+make clean-crm          # Limpa apenas CRM API
+make clean-renderer     # Limpa apenas Renderer standalone
 make clean-all          # Limpa tudo + reset Docker
 make purge              # Remove apps/ completamente
 ```
@@ -207,18 +265,22 @@ make docs-open          # Builda e abre a documentação no navegador
 
 #### Storybook
 ```bash
-make storybook-renderer # Storybook do Renderer - blocos (porta 6006)
-make storybook-ui       # Storybook da UI - componentes (porta 6007)
-make storybook-build    # Builda ambos os Storybooks
-make storybook-build-ui # Builda apenas Storybook da UI
-make storybook-build-renderer # Builda apenas Storybook do Renderer
+make storybook-ui                     # Storybook da UI (porta 6007)
+make storybook-renderer               # Storybook do Hosting Renderer (porta 6006)
+make storybook-standalone-renderer    # Storybook do Renderer standalone (porta 6008)
+make storybook-build                  # Builda todos os Storybooks
+make storybook-build-ui               # Builda Storybook da UI
+make storybook-build-renderer         # Builda Storybook do Hosting Renderer
+make storybook-build-standalone-renderer # Builda Storybook do Renderer standalone
 ```
 
 #### Utilidades
 ```bash
 make status             # Status de repos e serviços
 make logs               # Visualiza logs
+make logs-services      # Logs apenas dos serviços Docker
 make lint               # Executa linting
+make lint-fix           # Auto-fix de linting
 make monitor            # Informações sobre Bull Board (monitoramento de filas)
 ```
 
@@ -226,32 +288,38 @@ make monitor            # Informações sobre Bull Board (monitoramento de filas
 
 ```
 atd-2-0/
-├── apps/                          # Repositórios clonados (não versionado)
-│   ├── atd-workspace-ui/          # Interface de usuário
-│   ├── atd-workspace-general-api/ # API de propósito geral
-│   └── atd-workspace-hosting/     # Sistema de hospedagem
+├── apps/                              # Repositórios clonados (não versionado)
+│   ├── atd-workspace-ui/              # Interface de usuário
+│   ├── atd-workspace-general-api/     # API de autenticação
+│   ├── atd-workspace-hosting/         # Sistema de hospedagem
+│   ├── atd-workspace-cms-api/         # API de conteúdo
+│   ├── atd-workspace-crm/             # API de CRM
+│   └── atd-workspace-renderer/        # Renderer standalone
 │
-├── config/                        # Configurações
-│   ├── repos.json                 # Definição dos repositórios
-│   └── env-templates/             # Templates de .env
+├── config/                            # Configurações
+│   ├── repos.json                     # Definição dos repositórios
+│   └── env-templates/                 # Templates de .env
 │       ├── ui.env.template
 │       ├── general-api.env.template
-│       └── hosting-api.env.template
+│       ├── hosting-api.env.template
+│       ├── cms-api.env.template
+│       ├── crm.env.template
+│       └── renderer.env.template
 │
-├── scripts/                       # Scripts de automação
-│   ├── check-prerequisites.sh     # Verifica pré-requisitos
-│   ├── clone-repos.sh             # Clona repositórios
-│   ├── generate-env.sh            # Gera arquivos .env
-│   ├── install-deps.sh            # Instala dependências
-│   ├── wait-for-services.sh       # Aguarda serviços Docker
-│   └── setup.sh                   # Setup completo
+├── scripts/                           # Scripts de automação
+│   ├── check-prerequisites.sh         # Verifica pré-requisitos
+│   ├── clone-repos.sh                 # Clona repositórios
+│   ├── generate-env.sh                # Gera arquivos .env
+│   ├── install-deps.sh                # Instala dependências
+│   ├── wait-for-services.sh           # Aguarda serviços Docker
+│   └── setup.sh                       # Setup completo
 │
-├── docs/                          # Documentação adicional
+├── docs/                              # Documentação adicional
 │
-├── docker-compose.yml             # Definição de serviços Docker
-├── Makefile                       # Comandos de automação
-├── .gitignore                     # Ignora apps/ e arquivos sensíveis
-└── README.md                      # Este arquivo
+├── docker-compose.yml                 # Definição de serviços Docker
+├── Makefile                           # Comandos de automação
+├── .gitignore                         # Ignora apps/ e arquivos sensíveis
+└── README.md                          # Este arquivo
 ```
 
 ## Serviços Docker
@@ -316,6 +384,11 @@ O projeto usa **Vite Module Federation** para compartilhar componentes entre apl
 - Expõe via: `vite.federation.config.ts`
 - Servidor: Vite dev server na porta **5500**
 
+**Renderer Standalone:** Versão independente do renderer
+- Localização: `apps/atd-workspace-renderer/`
+- Mesmos blocos, configuração independente
+- Usado para desenvolvimento isolado
+
 **UI (Consumer):** Consome os blocos remotamente no page builder
 - Configuração: `VITE_MODULE_FEDERATION_URL` no `.env`
 - **Padrão**: CloudFront (staging/produção) - não requer renderer local
@@ -328,13 +401,13 @@ O projeto usa **Vite Module Federation** para compartilhar componentes entre apl
 
 # Opção 1: Usar blocos remotos do CloudFront (PADRÃO - recomendado)
 VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
-# ✅ Mais rápido, não precisa rodar renderer local
-# ❌ Não permite testar alterações nos blocos
+# Mais rápido, não precisa rodar renderer local
+# Não permite testar alterações nos blocos
 
 # Opção 2: Usar blocos do renderer local (desenvolvimento de blocos)
 VITE_MODULE_FEDERATION_URL='http://localhost:5500'
-# ✅ Permite desenvolver e testar blocos com hot reload
-# ❌ Requer rodar: make dev-hosting-renderer
+# Permite desenvolver e testar blocos com hot reload
+# Requer rodar: make dev-hosting-renderer ou make dev-renderer-federation
 ```
 
 ### Comandos Rápidos
@@ -348,12 +421,6 @@ make dev-hosting-renderer  # Terminal 1: Inicia Vite Federation (porta 5500)
 # Edite .env conforme acima (VITE_MODULE_FEDERATION_URL='http://localhost:5500')
 make dev-ui                # Terminal 2: Inicia UI consumindo blocos locais
 ```
-
-**Vantagens:**
-- UI e renderer podem ser desenvolvidos/deployados independentemente
-- Blocos podem ser atualizados sem rebuild da UI
-- Mesmos componentes usados no builder e nos sites publicados
-- Hot reload durante desenvolvimento de blocos
 
 ## Fluxo de Trabalho Típico
 
@@ -371,6 +438,10 @@ make dev-ui           # Trabalha apenas na UI
 make dev-general-api  # Trabalha apenas na General API
 # ou
 make dev-hosting      # Trabalha no Hosting (API + Worker + Renderer)
+# ou
+make dev-cms          # Trabalha na CMS API
+# ou
+make dev-crm          # Trabalha na CRM API
 ```
 
 ### Desenvolvendo Blocos do Page Builder
@@ -381,8 +452,6 @@ Os blocos/componentes do page builder estão no **Hosting Renderer**, não na UI
 ```bash
 make dev-ui           # UI consome blocos do CloudFront
 ```
-- ✅ Mais rápido, não precisa rodar renderer
-- ❌ Não pode testar alterações nos blocos
 
 **Para desenvolver blocos localmente:**
 
@@ -393,10 +462,6 @@ make dev-hosting-renderer  # Sobe Vite Federation Server na porta 5500
 
 2. Configure a UI para usar renderer local em `apps/atd-workspace-ui/.env`:
 ```env
-# Para usar blocos do CloudFront (padrão - não precisa rodar renderer):
-# VITE_MODULE_FEDERATION_URL='https://d379stbdytb00m.cloudfront.net'
-
-# Para usar blocos do renderer local (descomente a linha abaixo):
 VITE_MODULE_FEDERATION_URL='http://localhost:5500'
 ```
 
@@ -405,19 +470,16 @@ VITE_MODULE_FEDERATION_URL='http://localhost:5500'
 make dev-ui
 ```
 
-Agora a UI carregará blocos do renderer local com hot reload!
-
 ### Visualizando Componentes no Storybook
 
-O projeto possui **dois Storybooks** para desenvolvimento isolado de componentes:
+O projeto possui **três Storybooks** para desenvolvimento isolado de componentes:
 
-**Storybook do Renderer (blocos do page builder):**
+**Storybook do Hosting Renderer (blocos do page builder):**
 ```bash
 make storybook-renderer
 ```
 - Porta: http://localhost:6006
 - Contém: Todos os 23+ blocos/seções (Hero, Gallery, FormContentImage, etc.)
-- Útil para: Desenvolver e testar blocos visuais isoladamente
 
 **Storybook da UI (componentes internos):**
 ```bash
@@ -425,9 +487,13 @@ make storybook-ui
 ```
 - Porta: http://localhost:6007
 - Contém: Componentes da UI (Sidebar, Navbar, MediaSelect, etc.)
-- Útil para: Desenvolver componentes da interface do page builder
 
-**Dica:** Você pode rodar ambos Storybooks simultaneamente em portas diferentes!
+**Storybook do Renderer standalone:**
+```bash
+make storybook-standalone-renderer
+```
+- Porta: http://localhost:6008
+- Contém: Blocos do renderer standalone
 
 ### Atualizando Repositórios
 ```bash
@@ -438,15 +504,20 @@ make install          # Reinstala dependências se necessário
 ### Após Mudanças no Schema do Banco
 ```bash
 make db-migrate-general  # Se alterou General API
-# ou
 make db-migrate-hosting  # Se alterou Hosting
+make db-migrate-cms      # Se alterou CMS API
+make db-migrate-crm      # Se alterou CRM API
 ```
 
 ### Rodando Testes Antes de Commit
 ```bash
 make test             # Testa tudo
-# ou
-make test-ui          # Testa apenas UI
+# ou testes individuais
+make test-ui
+make test-general-api
+make test-hosting
+make test-cms
+make test-crm
 ```
 
 ### Final do Dia
@@ -507,8 +578,6 @@ VITE_MODULE_FEDERATION_URL='http://localhost:5500/'
 make dev-ui
 ```
 
-**Causa comum:** Configuração de `VITE_MODULE_FEDERATION_URL` apontando para localhost mas renderer não está rodando.
-
 ## Portas Utilizadas
 
 | Serviço                      | Porta | URL                                |
@@ -520,8 +589,11 @@ make dev-ui
 | CMS API                      | 3011  | http://localhost:3011              |
 | Hosting Renderer (Next.js)   | 3002  | http://localhost:3002 (auto)       |
 | Hosting Renderer (Federation)| 5500  | http://localhost:5500              |
-| Storybook Renderer           | 6006  | http://localhost:6006              |
+| Renderer standalone          | 3000  | http://localhost:3000              |
+| Renderer Federation          | 5500  | http://localhost:5500              |
+| Storybook Hosting Renderer   | 6006  | http://localhost:6006              |
 | Storybook UI                 | 6007  | http://localhost:6007              |
+| Storybook Renderer standalone| 6008  | http://localhost:6008              |
 | Swagger Docs                 | 8080  | http://localhost:8080              |
 | PostgreSQL General           | 5432  | localhost:5432                     |
 | PostgreSQL Hosting           | 5433  | localhost:5433                     |
@@ -537,37 +609,32 @@ make dev-ui
 | Bull Board (CMS)             | 3011  | http://localhost:3011/admin/queues |
 | Swagger UI (CRM)             | 3010  | http://localhost:3010/api-docs     |
 
-**Notas:**
-- **Hosting Renderer tem dois servidores:**
-  - **Next.js (porta auto)**: Para renderizar páginas publicadas (`pnpm dev`)
-  - **Vite Federation (porta 5500)**: Para expor blocos à UI (`pnpm dev-federation`)
-- Os Storybooks usam portas diferentes (6006 e 6007) e podem rodar simultaneamente.
-
 ## Monitoramento
 
 ### Bull Board (Filas)
+
+**Hosting API:**
 - URL: http://localhost:3001/bullmq/queues
 - Usuário/Senha: Definidos por `BULLBOARD_USER` e `BULLBOARD_PASSWORD` no `.env`
-- Requer Hosting API rodando
-- Monitora: Jobs de publicação, status, filas, erros
+
+**CMS API:**
+- URL: http://localhost:3011/admin/queues
+- Monitora: Jobs de processamento de conteúdo, indexação, etc.
 
 ### Storybook (Componentes)
 ```bash
-make storybook-renderer  # Blocos do page builder (porta 6006)
-make storybook-ui        # Componentes da UI (porta 6007)
+make storybook-renderer            # Blocos do Hosting (porta 6006)
+make storybook-ui                  # Componentes da UI (porta 6007)
+make storybook-standalone-renderer # Blocos do Renderer standalone (porta 6008)
 ```
-- Renderer: http://localhost:6006
-- UI: http://localhost:6007
-- Visualiza: Componentes isolados com controles interativos
-- Hot reload: Mudanças aparecem automaticamente
-- Pode rodar ambos simultaneamente
 
 ### Prisma Studio (Banco de Dados)
 ```bash
 make db-studio-general  # Visualiza banco General API
 make db-studio-hosting  # Visualiza banco Hosting API
+make db-studio-cms      # Visualiza banco CMS API
+make db-studio-crm      # Visualiza banco CRM API
 ```
-- Interface web para visualizar e editar dados do PostgreSQL
 
 ### Docker Status
 ```bash
@@ -577,15 +644,19 @@ make services-logs      # Logs em tempo real
 
 ## Tecnologias
 
-- **Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS
-- **Backend**: NestJS, TypeScript, Prisma ORM
-- **Bancos**: PostgreSQL 15
-- **Cache/Queues**: Redis, BullMQ
-- **Autenticação**: AWS Cognito
-- **Storage**: AWS S3 (LocalStack em dev)
-- **Module Federation**: Webpack Module Federation
-- **Testes**: Vitest, Cypress
-- **Gerenciadores**: npm, yarn, pnpm
+| Componente | Stack |
+|-----------|-------|
+| **UI** | Vite, React 18, TypeScript, Jotai, React Query, Radix UI, Tailwind CSS, CraftJS |
+| **General API** | Express, TypeScript, Prisma (PostgreSQL), AWS Cognito, AWS S3 |
+| **Hosting** | Express, TypeScript, Prisma (PostgreSQL), BullMQ (Redis), Next.js 14 |
+| **CMS API** | Express, TypeScript, Prisma (PostgreSQL), BullMQ (Redis), OpenSearch |
+| **CRM API** | Express, TypeScript, Prisma (PostgreSQL), BullMQ (Redis) |
+| **Renderer** | Next.js 14, React 18, TypeScript, Tailwind CSS, Module Federation |
+
+**Gerenciadores de pacotes:**
+- UI, CMS API, CRM API, Renderer: **npm**
+- General API: **yarn**
+- Hosting: **pnpm**
 
 ## Contribuindo
 
@@ -602,6 +673,7 @@ make services-logs      # Logs em tempo real
 - [Hosting - Processo de Publicação](./apps/atd-workspace-hosting/PUBLICATION_PROCESS.md)
 - [CMS API - Documentação Completa](./apps/atd-workspace-cms-api/README.md)
 - [CRM API - Documentação Completa](./apps/atd-workspace-crm/README.md)
+- [Renderer - Documentação Completa](./apps/atd-workspace-renderer/README.md)
 - [CLAUDE.md - Guia para IA](./CLAUDE.md)
 
 ### Documentação Swagger

@@ -111,23 +111,59 @@ fi
 cd - > /dev/null
 echo -e "  ${GREEN}✓${NC} Hosting API configurado!"
 
+# CMS API - Prisma
+echo -e "${YELLOW}→${NC} CMS API: Gerando Prisma client e executando migrations..."
+cd apps/atd-workspace-cms-api
+if ! npx prisma generate; then
+    echo -e "  ${RED}✗${NC} Erro ao gerar Prisma client (CMS API)"
+    cd - > /dev/null
+    exit 1
+fi
+if ! npx prisma migrate dev --name init; then
+    echo -e "  ${RED}✗${NC} Erro ao executar migrations (CMS API)"
+    cd - > /dev/null
+    exit 1
+fi
+cd - > /dev/null
+echo -e "  ${GREEN}✓${NC} CMS API configurado!"
+
+# CRM API - Prisma
+echo -e "${YELLOW}→${NC} CRM API: Gerando Prisma client e executando migrations..."
+cd apps/atd-workspace-crm
+if ! npx prisma generate; then
+    echo -e "  ${RED}✗${NC} Erro ao gerar Prisma client (CRM API)"
+    cd - > /dev/null
+    exit 1
+fi
+if ! npx prisma migrate dev --name init; then
+    echo -e "  ${RED}✗${NC} Erro ao executar migrations (CRM API)"
+    cd - > /dev/null
+    exit 1
+fi
+cd - > /dev/null
+echo -e "  ${GREEN}✓${NC} CRM API configurado!"
+
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}✓ Setup completo!${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "${CYAN}🚀 Para iniciar o desenvolvimento:${NC}"
-echo -e "   ${YELLOW}make dev${NC}          # Inicia todas as aplicações"
-echo -e "   ${YELLOW}make dev-ui${NC}       # Inicia apenas UI"
-echo -e "   ${YELLOW}make dev-apis${NC}     # Inicia apenas APIs"
+echo -e "   ${YELLOW}make dev${NC}              # Inicia todas as aplicações"
+echo -e "   ${YELLOW}make dev-ui${NC}           # Inicia apenas UI"
+echo -e "   ${YELLOW}make dev-apis${NC}         # Inicia apenas APIs (General + Hosting)"
+echo -e "   ${YELLOW}make dev-cms${NC}          # Inicia CMS API"
+echo -e "   ${YELLOW}make dev-crm${NC}          # Inicia CRM API"
 echo ""
 echo -e "${CYAN}📚 Outros comandos úteis:${NC}"
-echo -e "   ${YELLOW}make help${NC}         # Lista todos os comandos"
-echo -e "   ${YELLOW}make status${NC}       # Verifica status dos serviços"
-echo -e "   ${YELLOW}make logs${NC}         # Visualiza logs"
+echo -e "   ${YELLOW}make help${NC}             # Lista todos os comandos"
+echo -e "   ${YELLOW}make status${NC}           # Verifica status dos serviços"
+echo -e "   ${YELLOW}make logs${NC}             # Visualiza logs"
 echo ""
 echo -e "${YELLOW}⚠${NC}  Lembre-se de configurar credenciais reais em:"
 echo -e "   - ${BLUE}apps/atd-workspace-ui/.env${NC} (Pusher)"
-echo -e "   - ${BLUE}apps/atd-workspace-general-api/.env${NC} (SMTP, Pusher)"
-echo -e "   - ${BLUE}apps/atd-workspace-hosting/api/.env${NC} (Pusher)"
+echo -e "   - ${BLUE}apps/atd-workspace-general-api/.env${NC} (SMTP, Pusher, Cognito)"
+echo -e "   - ${BLUE}apps/atd-workspace-hosting/api/.env${NC} (Pusher, Cognito)"
+echo -e "   - ${BLUE}apps/atd-workspace-cms-api/.env${NC} (Cognito, AWS S3)"
+echo -e "   - ${BLUE}apps/atd-workspace-crm/.env${NC} (Cognito)"
 echo ""

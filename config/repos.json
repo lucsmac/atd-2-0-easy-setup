@@ -27,10 +27,12 @@
       "url": "https://github.com/autoforce/atd-workspace-cms-api.git",
       "branch": "main",
       "directory": "apps/atd-workspace-cms-api",
-      "packageManager": "pnpm",
+      "packageManager": "npm",
       "envTemplate": "config/env-templates/cms-api.env.template",
       "envDestination": "apps/atd-workspace-cms-api/.env",
-      "postClone": []
+      "postClone": [
+        "npx prisma generate"
+      ]
     },
     {
       "name": "atd-workspace-hosting",
@@ -49,17 +51,19 @@
       "url": "https://github.com/autoforce/atd-workspace-crm.git",
       "branch": "main",
       "directory": "apps/atd-workspace-crm",
-      "packageManager": "pnpm",
+      "packageManager": "npm",
       "envTemplate": "config/env-templates/crm.env.template",
       "envDestination": "apps/atd-workspace-crm/.env",
-      "postClone": []
+      "postClone": [
+        "npx prisma generate"
+      ]
     },
     {
       "name": "atd-workspace-renderer",
       "url": "https://github.com/autoforce/atd-workspace-renderer.git",
       "branch": "main",
       "directory": "apps/atd-workspace-renderer",
-      "packageManager": "pnpm",
+      "packageManager": "npm",
       "envTemplate": "config/env-templates/renderer.env.template",
       "envDestination": "apps/atd-workspace-renderer/.env",
       "postClone": []

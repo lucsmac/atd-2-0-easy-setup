@@ -1,14 +1,14 @@
-.PHONY: help check setup clone update install install-ui install-general-api install-hosting install-cms install-crm
+.PHONY: help check setup clone update install install-ui install-general-api install-hosting install-cms install-crm install-renderer
 .PHONY: services services-stop services-restart services-status services-logs services-reset
-.PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-cms dev-cms-worker dev-crm dev-apis dev-hosting
-.PHONY: test test-ui test-general-api test-hosting test-cms test-crm test-watch coverage
-.PHONY: build build-ui build-general-api build-hosting build-cms build-crm
+.PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-cms dev-cms-worker dev-crm dev-renderer dev-apis dev-hosting
+.PHONY: test test-ui test-general-api test-hosting test-cms test-crm test-renderer test-watch coverage
+.PHONY: build build-ui build-general-api build-hosting build-cms build-crm build-renderer
 .PHONY: db-migrate db-migrate-general db-migrate-hosting db-migrate-cms db-migrate-crm
 .PHONY: db-studio-general db-studio-hosting db-studio-cms db-studio-crm db-reset db-reset-general db-reset-hosting db-reset-cms db-reset-crm db-seed
-.PHONY: clean clean-ui clean-general-api clean-hosting clean-cms clean-crm clean-all purge
+.PHONY: clean clean-ui clean-general-api clean-hosting clean-cms clean-crm clean-renderer clean-all purge
 .PHONY: env-generate env-regenerate env-validate status logs lint lint-fix format format-check
 .PHONY: docs docs-build docs-serve docs-open
-.PHONY: storybook-ui storybook-renderer storybook-build storybook-build-ui storybook-build-renderer
+.PHONY: storybook-ui storybook-renderer storybook-standalone-renderer storybook-build storybook-build-ui storybook-build-renderer storybook-build-standalone-renderer
 
 # Cores para output (funciona em bash)
 BLUE := \033[0;34m
@@ -60,6 +60,9 @@ install-cms: ## Instala deps apenas da CMS API
 
 install-crm: ## Instala deps apenas da CRM API
 	@cd apps/atd-workspace-crm && npm install
+
+install-renderer: ## Instala deps apenas do Renderer standalone
+	@cd apps/atd-workspace-renderer && npm install
 
 ##@ Serviços Docker
 
@@ -145,12 +148,31 @@ dev-crm: services ## Inicia CRM API (porta 3010)
 	@echo ""
 	@cd apps/atd-workspace-crm && npm run dev
 
-dev-apis: services ## Inicia General API + Hosting API + Worker
+dev-renderer: ## Inicia Renderer standalone (porta 3000)
+	@echo "$(BLUE)🎨 Iniciando Renderer standalone...$(NC)"
+	@echo "$(YELLOW)ℹ  Next.js disponível em: http://localhost:3000$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-renderer && npm run dev
+
+dev-renderer-federation: ## Inicia Renderer standalone com Module Federation (porta 5500)
+	@echo "$(BLUE)🎨 Iniciando Renderer standalone com Module Federation...$(NC)"
+	@echo "$(YELLOW)ℹ  Módulos federados disponíveis em: http://localhost:5500$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-renderer && npm run publish-federation -- --watch
+
+dev-apis: services ## Inicia TODAS as APIs (General + Hosting + CMS + CRM)
 	@echo "$(BLUE)🔧 Iniciando todas as APIs...$(NC)"
+	@echo "$(YELLOW)ℹ  General API: http://localhost:3005$(NC)"
+	@echo "$(YELLOW)ℹ  Hosting API: http://localhost:3001$(NC)"
+	@echo "$(YELLOW)ℹ  CMS API:     http://localhost:3011$(NC)"
+	@echo "$(YELLOW)ℹ  CRM API:     http://localhost:3010$(NC)"
+	@echo ""
 	@trap 'kill 0' EXIT; \
 	(cd apps/atd-workspace-general-api && yarn dev) & \
 	(cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev) & \
 	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
+	(cd apps/atd-workspace-cms-api && npm run dev) & \
+	(cd apps/atd-workspace-crm && npm run dev) & \
 	wait
 
 dev-hosting: services ## Inicia Hosting API + Worker + Renderer
@@ -213,6 +235,10 @@ test-crm: ## Testes da CRM API (Vitest)
 test-crm-watch: ## Testes da CRM API em watch mode
 	@cd apps/atd-workspace-crm && npm test
 
+test-renderer: ## Lint do Renderer standalone
+	@echo "$(BLUE)🧪 Verificando Renderer standalone (lint)...$(NC)"
+	@cd apps/atd-workspace-renderer && npm run lint
+
 coverage: ## Gera relatórios de cobertura de todos os projetos
 	@echo "$(BLUE)📊 Gerando relatórios de cobertura...$(NC)"
 	@cd apps/atd-workspace-ui && npm run test-ci
@@ -253,6 +279,11 @@ build-cms: ## Build apenas CMS API
 build-crm: ## Build apenas CRM API
 	@echo "$(BLUE)🏗️  Building CRM API...$(NC)"
 	@cd apps/atd-workspace-crm && npm run build
+
+build-renderer: ## Build do Renderer standalone (Next.js + Module Federation)
+	@echo "$(BLUE)🏗️  Building Renderer standalone...$(NC)"
+	@cd apps/atd-workspace-renderer && npm run build
+	@cd apps/atd-workspace-renderer && npm run publish-federation
 
 ##@ Banco de Dados
 
@@ -328,6 +359,9 @@ env-regenerate: ## Regenera .env (sobrescreve existentes)
 	@rm -f apps/atd-workspace-ui/.env
 	@rm -f apps/atd-workspace-general-api/.env
 	@rm -f apps/atd-workspace-hosting/api/.env
+	@rm -f apps/atd-workspace-cms-api/.env
+	@rm -f apps/atd-workspace-crm/.env
+	@rm -f apps/atd-workspace-renderer/.env
 	@./scripts/generate-env.sh
 
 env-validate: ## Valida se .env tem todas as variáveis necessárias
@@ -343,6 +377,7 @@ clean: ## Remove node_modules, dist, .next, cache
 	@rm -rf apps/atd-workspace-hosting/node_modules apps/atd-workspace-hosting/api/dist apps/atd-workspace-hosting/renderer/.next
 	@rm -rf apps/atd-workspace-cms-api/node_modules apps/atd-workspace-cms-api/dist
 	@rm -rf apps/atd-workspace-crm/node_modules apps/atd-workspace-crm/dist
+	@rm -rf apps/atd-workspace-renderer/node_modules apps/atd-workspace-renderer/.next apps/atd-workspace-renderer/dist
 	@echo "$(GREEN)✓ Limpeza concluída$(NC)"
 
 clean-ui: ## Limpa apenas UI
@@ -359,6 +394,9 @@ clean-cms: ## Limpa apenas CMS API
 
 clean-crm: ## Limpa apenas CRM API
 	@rm -rf apps/atd-workspace-crm/node_modules apps/atd-workspace-crm/dist
+
+clean-renderer: ## Limpa apenas Renderer standalone
+	@rm -rf apps/atd-workspace-renderer/node_modules apps/atd-workspace-renderer/.next apps/atd-workspace-renderer/dist
 
 clean-all: ## Limpa tudo + reset de serviços Docker
 	@echo "$(RED)⚠️  Limpando TUDO (arquivos + Docker)...$(NC)"
@@ -435,11 +473,16 @@ format-check: ## Verifica formatação sem modificar
 
 monitor: ## Abre Bull Board (monitoramento de filas)
 	@echo "$(BLUE)📊 Bull Board disponível em:$(NC)"
-	@echo "   $(YELLOW)http://localhost:3000/bullmq/queues$(NC)"
-	@echo "   Usuário: admin"
-	@echo "   Senha: admin"
 	@echo ""
-	@echo "$(YELLOW)ℹ  Certifique-se de que o Hosting API está rodando (make dev-hosting-api)$(NC)"
+	@echo "   $(YELLOW)Hosting API:$(NC) http://localhost:3001/bullmq/queues"
+	@echo "   $(YELLOW)CMS API:$(NC)     http://localhost:3011/admin/queues"
+	@echo ""
+	@echo "   Usuário: admin"
+	@echo "   Senha: (configurado em BULLBOARD_PASSWORD no .env)"
+	@echo ""
+	@echo "$(YELLOW)ℹ  Certifique-se de que as APIs estão rodando:$(NC)"
+	@echo "   - Hosting: make dev-hosting-api"
+	@echo "   - CMS:     make dev-cms"
 
 ##@ Documentação
 
@@ -470,22 +513,34 @@ storybook-ui: ## Inicia Storybook da UI (porta 6007)
 	@echo ""
 	@cd apps/atd-workspace-ui && npm run storybook -- --port 6007
 
-storybook-renderer: ## Inicia Storybook do Renderer - blocos (porta 6006)
-	@echo "$(BLUE)📖 Iniciando Storybook do Renderer...$(NC)"
+storybook-renderer: ## Inicia Storybook do Hosting Renderer - blocos (porta 6006)
+	@echo "$(BLUE)📖 Iniciando Storybook do Hosting Renderer...$(NC)"
 	@echo "$(GREEN)✓ Storybook disponível em: $(YELLOW)http://localhost:6006$(NC)"
 	@echo "$(YELLOW)ℹ  Pressione Ctrl+C para parar$(NC)"
 	@echo ""
 	@cd apps/atd-workspace-hosting/renderer && pnpm storybook -- --port 6006
+
+storybook-standalone-renderer: ## Inicia Storybook do Renderer standalone (porta 6008)
+	@echo "$(BLUE)📖 Iniciando Storybook do Renderer standalone...$(NC)"
+	@echo "$(GREEN)✓ Storybook disponível em: $(YELLOW)http://localhost:6008$(NC)"
+	@echo "$(YELLOW)ℹ  Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@cd apps/atd-workspace-renderer && npm run storybook -- --port 6008
 
 storybook-build-ui: ## Builda Storybook da UI
 	@echo "$(BLUE)📖 Building Storybook da UI...$(NC)"
 	@cd apps/atd-workspace-ui && npm run build-storybook
 	@echo "$(GREEN)✓ Storybook da UI buildado em apps/atd-workspace-ui/storybook-static$(NC)"
 
-storybook-build-renderer: ## Builda Storybook do Renderer
-	@echo "$(BLUE)📖 Building Storybook do Renderer...$(NC)"
+storybook-build-renderer: ## Builda Storybook do Hosting Renderer
+	@echo "$(BLUE)📖 Building Storybook do Hosting Renderer...$(NC)"
 	@cd apps/atd-workspace-hosting/renderer && pnpm build-storybook
-	@echo "$(GREEN)✓ Storybook do Renderer buildado em apps/atd-workspace-hosting/renderer/storybook-static$(NC)"
+	@echo "$(GREEN)✓ Storybook do Hosting Renderer buildado em apps/atd-workspace-hosting/renderer/storybook-static$(NC)"
 
-storybook-build: storybook-build-ui storybook-build-renderer ## Builda ambos os Storybooks
+storybook-build-standalone-renderer: ## Builda Storybook do Renderer standalone
+	@echo "$(BLUE)📖 Building Storybook do Renderer standalone...$(NC)"
+	@cd apps/atd-workspace-renderer && npm run build-storybook
+	@echo "$(GREEN)✓ Storybook do Renderer standalone buildado em apps/atd-workspace-renderer/storybook-static$(NC)"
+
+storybook-build: storybook-build-ui storybook-build-renderer storybook-build-standalone-renderer ## Builda todos os Storybooks
 

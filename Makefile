@@ -1,6 +1,7 @@
 .PHONY: help check setup clone update install install-ui install-general-api install-hosting install-cms install-crm install-renderer
 .PHONY: services services-stop services-restart services-status services-logs services-reset
 .PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-cms dev-cms-worker dev-crm dev-renderer dev-apis dev-hosting
+.PHONY: dev-renderer-federation serve-renderer-federation stop-renderer-federation build-renderer-federation
 .PHONY: test test-ui test-general-api test-hosting test-cms test-crm test-renderer test-watch coverage
 .PHONY: build build-ui build-general-api build-hosting build-cms build-crm build-renderer
 .PHONY: db-migrate db-migrate-general db-migrate-hosting db-migrate-cms db-migrate-crm
@@ -102,8 +103,9 @@ dev: services ## Inicia todas as aplicações (UI + APIs + Worker + Renderer)
 	(cd apps/atd-workspace-ui && npm run dev) & \
 	(cd apps/atd-workspace-general-api && yarn dev) & \
 	(cd apps/atd-workspace-hosting/api && PORT=3001 pnpm dev) & \
-	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
+	(cd apps/atd-workspace-hosting/api && pnpm dev:worker) & \
 	(cd apps/atd-workspace-hosting/renderer && pnpm dev) & \
+	(cd apps/atd-workspace-cms-api && npm run dev) & \
 	wait
 
 dev-ui: services ## Inicia apenas UI (porta 3000)
@@ -154,11 +156,53 @@ dev-renderer: ## Inicia Renderer standalone (porta 3000)
 	@echo ""
 	@cd apps/atd-workspace-renderer && npm run dev
 
-dev-renderer-federation: ## Inicia Renderer standalone com Module Federation (porta 5500)
-	@echo "$(BLUE)🎨 Iniciando Renderer standalone com Module Federation...$(NC)"
-	@echo "$(YELLOW)ℹ  Módulos federados disponíveis em: http://localhost:5500$(NC)"
+build-renderer-federation: ## Builda os módulos federados do Renderer (sem servir)
+	@echo "$(BLUE)🔨 Buildando módulos federados do Renderer...$(NC)"
+	@cd apps/atd-workspace-renderer && npm run publish-federation
+	@echo "$(GREEN)✓ Build concluído em apps/atd-workspace-renderer/dist$(NC)"
+
+dev-renderer-federation: build-renderer-federation serve-renderer-federation ## Builda e serve Module Federation (porta 5500)
+
+serve-renderer-federation: ## Serve os módulos federados já buildados (porta 5500)
+	@echo "$(BLUE)🚀 Servindo módulos federados do Renderer...$(NC)"
+	@echo "$(YELLOW)ℹ  Servidor rodando em: http://localhost:5500$(NC)"
+	@echo "$(YELLOW)ℹ  remoteEntry.js: http://localhost:5500/assets/remoteEntry.js$(NC)"
+	@echo "$(YELLOW)ℹ  Para parar o servidor: make stop-renderer-federation$(NC)"
 	@echo ""
-	@cd apps/atd-workspace-renderer && npm run publish-federation -- --watch
+	@if lsof -ti:5500 > /dev/null 2>&1; then \
+		echo "$(RED)✗ Porta 5500 já está em uso$(NC)"; \
+		echo "$(YELLOW)ℹ  Execute 'make stop-renderer-federation' para parar o servidor$(NC)"; \
+		exit 1; \
+	fi
+	@cd apps/atd-workspace-renderer/dist && nohup http-server -p 5500 --cors > /tmp/renderer-federation.log 2>&1 & echo $$! > /tmp/renderer-federation.pid
+	@sleep 2
+	@if lsof -ti:5500 > /dev/null 2>&1; then \
+		echo "$(GREEN)✓ Servidor iniciado com sucesso!$(NC)"; \
+		echo "$(YELLOW)ℹ  Logs: tail -f /tmp/renderer-federation.log$(NC)"; \
+	else \
+		echo "$(RED)✗ Falha ao iniciar servidor$(NC)"; \
+		cat /tmp/renderer-federation.log; \
+		exit 1; \
+	fi
+
+stop-renderer-federation: ## Para o servidor de módulos federados
+	@echo "$(BLUE)🛑 Parando servidor de módulos federados...$(NC)"
+	@if [ -f /tmp/renderer-federation.pid ]; then \
+		PID=$$(cat /tmp/renderer-federation.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			kill $$PID && echo "$(GREEN)✓ Servidor parado (PID: $$PID)$(NC)"; \
+		else \
+			echo "$(YELLOW)ℹ  Processo $$PID não está rodando$(NC)"; \
+		fi; \
+		rm -f /tmp/renderer-federation.pid; \
+	else \
+		if lsof -ti:5500 > /dev/null 2>&1; then \
+			kill $$(lsof -ti:5500) && echo "$(GREEN)✓ Servidor na porta 5500 parado$(NC)"; \
+		else \
+			echo "$(YELLOW)ℹ  Nenhum servidor rodando na porta 5500$(NC)"; \
+		fi; \
+	fi
+	@rm -f /tmp/renderer-federation.log
 
 dev-apis: services ## Inicia TODAS as APIs (General + Hosting + CMS + CRM)
 	@echo "$(BLUE)🔧 Iniciando todas as APIs...$(NC)"

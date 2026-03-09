@@ -1,6 +1,8 @@
 .PHONY: help check setup clone update install install-ui install-general-api install-hosting install-cms install-crm install-renderer
 .PHONY: services services-stop services-restart services-status services-logs services-reset
+.PHONY: services-optimized services-optimized-minimal services-optimized-backend services-optimized-full services-optimized-stop services-optimized-status services-optimized-logs services-optimized-reset services-optimized-test
 .PHONY: dev dev-ui dev-general-api dev-hosting-api dev-hosting-worker dev-hosting-renderer dev-cms dev-cms-worker dev-crm dev-renderer dev-apis dev-hosting
+.PHONY: dev-modular dev-status dev-logs dev-stop dev-restart
 .PHONY: dev-renderer-federation serve-renderer-federation stop-renderer-federation build-renderer-federation
 .PHONY: test test-ui test-general-api test-hosting test-cms test-crm test-renderer test-watch coverage
 .PHONY: build build-ui build-general-api build-hosting build-cms build-crm build-renderer
@@ -92,6 +94,60 @@ services-reset: ## ⚠️  Reset completo dos serviços (apaga volumes!)
 	@read -p "Tem certeza? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
 	@docker-compose down -v
 	@echo "$(GREEN)✓ Serviços resetados$(NC)"
+
+##@ Serviços Docker Otimizados (Economia de RAM)
+
+services-optimized: services-optimized-minimal ## Inicia serviços OTIMIZADOS (profile: minimal - apenas PostgreSQL único)
+
+services-optimized-minimal: ## PostgreSQL único (~400 MB) - todos databases em 1 container
+	@echo "$(BLUE)🚀 Iniciando serviços OTIMIZADOS (minimal)...$(NC)"
+	@echo "$(GREEN)✓ PostgreSQL único com 4 databases$(NC)"
+	@echo "$(YELLOW)ℹ  Economia: ~1.2 GB vs docker-compose padrão$(NC)"
+	@docker-compose -f docker-compose.optimized.yml up -d
+	@sleep 5
+	@echo "$(GREEN)✓ Serviços iniciados$(NC)"
+	@echo ""
+	@echo "$(CYAN)Databases disponíveis:$(NC)"
+	@echo "  - atd_general  → postgresql://atd:atd123@localhost:5432/atd_general"
+	@echo "  - atd_hosting  → postgresql://atd:atd123@localhost:5432/atd_hosting"
+	@echo "  - atd_cms      → postgresql://atd:atd123@localhost:5432/atd_cms"
+	@echo "  - atd_crm      → postgresql://atd:atd123@localhost:5432/atd_crm"
+
+services-optimized-backend: ## PostgreSQL único + Redis (~600 MB) - para APIs com filas
+	@echo "$(BLUE)🚀 Iniciando serviços OTIMIZADOS (backend)...$(NC)"
+	@echo "$(GREEN)✓ PostgreSQL único + Redis otimizado$(NC)"
+	@echo "$(YELLOW)ℹ  Economia: ~1 GB vs docker-compose padrão$(NC)"
+	@docker-compose -f docker-compose.optimized.yml --profile backend up -d
+	@sleep 5
+	@echo "$(GREEN)✓ Serviços iniciados$(NC)"
+
+services-optimized-full: ## Todos serviços otimizados (~2.5 GB vs ~4 GB padrão)
+	@echo "$(BLUE)🚀 Iniciando serviços OTIMIZADOS (full)...$(NC)"
+	@echo "$(GREEN)✓ PostgreSQL único + Redis (x3) + OpenSearch + LocalStack$(NC)"
+	@echo "$(YELLOW)ℹ  Economia: ~1.5 GB vs docker-compose padrão$(NC)"
+	@docker-compose -f docker-compose.optimized.yml --profile full up -d
+	@sleep 10
+	@echo "$(GREEN)✓ Serviços iniciados$(NC)"
+
+services-optimized-stop: ## Para serviços otimizados
+	@echo "$(YELLOW)⏸  Parando serviços otimizados...$(NC)"
+	@docker-compose -f docker-compose.optimized.yml down
+	@echo "$(GREEN)✓ Serviços parados$(NC)"
+
+services-optimized-status: ## Verifica status dos serviços otimizados
+	@docker-compose -f docker-compose.optimized.yml ps
+
+services-optimized-logs: ## Visualiza logs dos serviços otimizados
+	@docker-compose -f docker-compose.optimized.yml logs -f
+
+services-optimized-reset: ## ⚠️  Reset dos serviços otimizados (apaga volumes!)
+	@echo "$(RED)⚠️  ATENÇÃO: Isso irá apagar TODOS OS DADOS dos bancos otimizados!$(NC)"
+	@read -p "Tem certeza? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
+	@docker-compose -f docker-compose.optimized.yml down -v
+	@echo "$(GREEN)✓ Serviços otimizados resetados$(NC)"
+
+services-optimized-test: ## Testa se serviços otimizados estão funcionando corretamente
+	@./scripts/test-docker-optimized.sh
 
 ##@ Desenvolvimento
 
@@ -226,6 +282,22 @@ dev-hosting: services ## Inicia Hosting API + Worker + Renderer
 	(cd apps/atd-workspace-hosting/api && pnpm worker) & \
 	(cd apps/atd-workspace-hosting/renderer && pnpm dev) & \
 	wait
+
+##@ Desenvolvimento Modular (Uso Reduzido de RAM)
+
+dev-modular: ## Setup modular interativo - roda apenas o necessário
+	@./scripts/dev-modular.sh
+
+dev-status: ## Mostra status e uso de RAM dos serviços
+	@./scripts/dev-status.sh
+
+dev-logs: ## Visualiza logs dos serviços rodando
+	@./scripts/dev-logs.sh
+
+dev-stop: ## Para todos os serviços do setup modular
+	@./scripts/dev-stop.sh
+
+dev-restart: dev-stop dev-modular ## Reinicia o setup modular
 
 ##@ Testes
 

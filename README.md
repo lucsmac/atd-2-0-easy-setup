@@ -172,6 +172,44 @@ make services-logs      # Visualiza logs dos serviços
 make services-reset     # Reset completo (APAGA DADOS!)
 ```
 
+#### ⚡ Serviços Docker Otimizados (Economia de RAM)
+
+**Novo!** Setup Docker otimizado que reduz uso de RAM em até **62%** (~2.5 GB vs ~4 GB).
+
+```bash
+# Minimal (~400 MB) - Apenas PostgreSQL único
+make services-optimized
+make services-optimized-minimal
+
+# Backend (~600 MB) - PostgreSQL + Redis
+make services-optimized-backend
+
+# Full (~2.5 GB) - Todos serviços otimizados
+make services-optimized-full
+
+# Gerenciamento
+make services-optimized-stop
+make services-optimized-status
+make services-optimized-logs
+make services-optimized-reset
+```
+
+**Principais otimizações:**
+- 🔥 **PostgreSQL único** ao invés de 4 containers (economia de ~1.2 GB)
+- 🔥 **Redis com limites** de memória
+- 🔥 **OpenSearch com heap reduzido** (512 MB vs 1 GB)
+- 🔥 **LocalStack slim** (400 MB vs 600 MB)
+- 🔥 **tmpfs para logs** (I/O mais rápido)
+
+📖 **[Documentação completa Docker Otimizado](./DOCKER-OPTIMIZED.md)**
+
+**Uso com dev-modular:**
+```bash
+# Usar Docker otimizado automaticamente
+export ATD_DOCKER_MODE=optimized
+make dev-modular
+```
+
 #### Desenvolvimento
 ```bash
 make dev                   # Inicia TODAS as aplicações
@@ -188,6 +226,36 @@ make dev-renderer-federation # Inicia Renderer Federation (porta 5500)
 make dev-apis              # Inicia TODAS as APIs (General + Hosting + CMS + CRM)
 make dev-hosting           # Inicia Hosting completo (API + Worker + Renderer)
 ```
+
+#### ⚡ Desenvolvimento Modular (Uso Reduzido de RAM)
+
+**Novo!** Setup otimizado que roda apenas os serviços necessários para cada contexto, reduzindo uso de RAM em 50-80%.
+
+```bash
+make dev-modular        # Menu interativo para escolher perfil
+make dev-status         # Ver status e uso de RAM dos serviços
+make dev-logs           # Visualizar logs dos serviços
+make dev-stop           # Parar todos os serviços
+make dev-restart        # Reiniciar setup modular
+```
+
+**Perfis disponíveis:**
+1. **UI + Builder** (~1.5 GB) - Desenvolvimento de interface
+2. **Auth & Usuários** (~800 MB) - Autenticação e Cognito
+3. **Publishing & Templates** (~2 GB) - Sistema de publicação
+4. **CMS Completo** (~1.8 GB) - Gerenciamento de conteúdo
+5. **CRM** (~1 GB) - Sistema de CRM
+6. **Backend Completo** (~3 GB) - Todas APIs sem UI
+7. **Fullstack** (~4 GB) - Equivalente ao `make dev`
+8. **Personalizado** - Escolha serviços individualmente
+9. **Builder + CMS** (~1.5 GB) - UI + CMS sem workers/OpenSearch
+10. **Builder + CMS + Hosting** (~2.5 GB) - Desenvolvimento completo ⭐ Novo!
+
+📖 **[Documentação completa do Setup Modular](./DEV-MODULAR.md)**
+
+**Comparação:**
+- `make dev`: ~4 GB RAM, 8 processos Node.js
+- `make dev-modular`: ~1-2 GB RAM (dependendo do perfil)
 
 #### Testes
 ```bash

@@ -1,0 +1,271 @@
+# 🚀 Docker Compose OTIMIZADO para Autódromo 2.0
+#
+# Otimizações:
+# - PostgreSQL ÚNICO com múltiplos databases (~1.2 GB economia)
+# - Limites de memória em todos serviços
+# - Configurações otimizadas de PostgreSQL
+# - Redis com limites de memória
+# - OpenSearch com heap reduzido
+# - tmpfs para logs (performance)
+# - Profiles para iniciar apenas o necessário
+#
+# Uso:
+#   docker-compose -f docker-compose.optimized.yml up -d
+#   make services-optimized
+
+services:
+  # PostgreSQL ÚNICO - Todos os databases em um container
+  # Economia: ~1.2 GB vs 4 containers separados
+  postgres:
+    image: postgres:14.10-alpine
+    container_name: atd-postgres-optimized
+    environment:
+      POSTGRES_USER: atd
+      POSTGRES_PASSWORD: atd123
+      # PostgreSQL otimizações
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_connections=100
+      -c logging_collector=off
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-optimized-data:/var/lib/postgresql/data
+      - ./config/init-dbs.sql:/docker-entrypoint-initdb.d/01-init-dbs.sql:ro
+    tmpfs:
+      - /var/log/postgresql
+    shm_size: 256mb
+    mem_limit: 512m
+    mem_reservation: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atd"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atd-network
+    # PostgreSQL sempre sobe (serviço base)
+
+  # Redis ÚNICO com limites de memória
+  # Usado por Hosting Worker e CMS (batch + search)
+  redis:
+    image: redis:7-alpine
+    container_name: atd-redis-optimized
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --logfile ""
+    ports:
+      - "6379:6379"
+    tmpfs:
+      - /data
+    mem_limit: 256m
+    mem_reservation: 128m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+    profiles:
+      - full
+      - backend
+
+  # Redis secundário para CMS (batch processing)
+  # Apenas quando necessário processar filas
+  redis-cms-batch:
+    image: redis:7-alpine
+    container_name: atd-redis-cms-batch-optimized
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --logfile ""
+    ports:
+      - "6380:6379"
+    tmpfs:
+      - /data
+    mem_limit: 128m
+    mem_reservation: 64m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+    profiles:
+      - full
+
+  # Redis para CMS Search
+  redis-cms-search:
+    image: redis:7-alpine
+    container_name: atd-redis-cms-search-optimized
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --logfile ""
+    ports:
+      - "6381:6379"
+    tmpfs:
+      - /data
+    mem_limit: 128m
+    mem_reservation: 64m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atd-network
+    profiles:
+      - full
+
+  # OpenSearch com heap reduzido
+  # Heap padrão: 1GB -> Otimizado: 512MB
+  opensearch-cms:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: atd-opensearch-cms-optimized
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - plugins.security.disabled=true
+      - bootstrap.memory_lock=false
+      # Otimizações adicionais
+      - indices.memory.index_buffer_size=30%
+      - http.max_content_length=100mb
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch-cms-data:/usr/share/opensearch/data
+    tmpfs:
+      - /usr/share/opensearch/logs
+    mem_limit: 1g
+    mem_reservation: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - atd-network
+    profiles:
+      - full
+
+  # OpenSearch Dashboards (apenas em modo full)
+  opensearch-dashboards-cms:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: atd-opensearch-dashboards-cms-optimized
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch-cms:9200
+      - OPENSEARCH_SSL_VERIFICATIONMODE=none
+      - SERVER_SSL_ENABLED=false
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      - opensearch_security.disabled=true
+    depends_on:
+      - opensearch-cms
+    ports:
+      - "5601:5601"
+    mem_limit: 512m
+    mem_reservation: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - atd-network
+    profiles:
+      - full
+
+  # LocalStack - AWS local (S3, Cognito, CloudFront)
+  # Apenas em modo full
+  localstack:
+    image: localstack/localstack:3.0-slim
+    container_name: atd-localstack-optimized
+    environment:
+      - SERVICES=s3,cognito-idp
+      - DEBUG=0
+      - AWS_DEFAULT_REGION=us-east-1
+      - EDGE_PORT=4566
+      - DISABLE_EVENTS=1
+      - SKIP_SSL_CERT_DOWNLOAD=1
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+    tmpfs:
+      - /tmp/localstack
+    mem_limit: 512m
+    mem_reservation: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - atd-network
+    profiles:
+      - full
+
+volumes:
+  postgres-optimized-data:
+    driver: local
+  opensearch-cms-data:
+    driver: local
+  localstack-data:
+    driver: local
+
+networks:
+  atd-network:
+    driver: bridge
+
+# Profiles disponíveis:
+#
+# minimal (padrão):
+#   - postgres (todos databases)
+#   Uso: ~400 MB
+#
+# backend:
+#   - postgres + redis
+#   Uso: ~600 MB
+#
+# full:
+#   - postgres + redis (x3) + opensearch + localstack
+#   Uso: ~2.5 GB (vs ~4 GB original)
+#
+# Uso:
+#   docker-compose -f docker-compose.optimized.yml up -d  # minimal
+#   docker-compose -f docker-compose.optimized.yml --profile backend up -d
+#   docker-compose -f docker-compose.optimized.yml --profile full up -d
